@@ -4,7 +4,8 @@
   "private": true,
   "description": "Front de CardioPrev en TypeScript",
   "scripts": {
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "build": "npm run check && node build.mjs"
   },
   "devDependencies": {
     "esbuild": "0.28.2",
