@@ -24,6 +24,7 @@ const NIVELES: Record<string, string> = { bajo: 'Riesgo Bajo', medio: 'Riesgo Me
 export class VistaResultado extends Vista {
   private readonly api: ApiEvaluaciones;
   private readonly descarga: DescargaPdf;
+  private readonly avisos: Avisos;
   private readonly navegador: Navegador;
   private readonly errores: ManejadorErrores;
 
@@ -31,6 +32,7 @@ export class VistaResultado extends Vista {
     super(d.barra);
     this.api = d.api;
     this.descarga = d.descarga;
+    this.avisos = d.avisos;
     this.navegador = d.navegador;
     this.errores = d.errores;
   }
@@ -44,7 +46,7 @@ export class VistaResultado extends Vista {
     this.pintar('<p class="centrado muted">Cargando resultado…</p>');
     try {
       const r = await this.api.evaluacion(this.id);
-      this.$('#flash').innerHTML = '';
+      this.avisos.limpiar();
       const nombreNivel = NIVELES[r.nivel] || r.nivel;
       const n = r.nutricion;
       this.pintar(`<div class="contenedor resultado">

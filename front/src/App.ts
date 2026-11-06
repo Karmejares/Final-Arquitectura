@@ -6,8 +6,10 @@ import { Sesion } from './datos/Sesion';
 import { CatalogoSecciones } from './dominio/CatalogoSecciones';
 import { Avisos } from './interfaz/Avisos';
 import { BarraNavegacion } from './interfaz/BarraNavegacion';
+import { Campos } from './interfaz/Campos';
 import { Enrutador } from './interfaz/Enrutador';
 import { FabricaVistas } from './interfaz/FabricaVistas';
+import { LectorFormulario } from './interfaz/LectorFormulario';
 import { ManejadorErrores } from './interfaz/ManejadorErrores';
 import { Navegador } from './interfaz/Navegador';
 import { CierreSesion } from './servicios/CierreSesion';
@@ -40,7 +42,8 @@ export class App {
 
     const fabrica = new FabricaVistas({
       barra, apiAuth: api, apiEvaluaciones: api, sesion, repoBorrador, catalogo,
-      flujo, descarga, avisos, navegador, errores, minutos: MINUTOS_INACTIVIDAD,
+      flujo, descarga, avisos, navegador, errores, lector: new LectorFormulario(), campos: new Campos(),
+      minutos: MINUTOS_INACTIVIDAD,
     });
     const enrutador = new Enrutador(fabrica, sesion, avisos, navegador, vigilante);
 
