@@ -32,7 +32,6 @@ ARCHIVOS = [
     "app/routers/evaluaciones.py",
     "static/index.html",
     "static/css/estilos.css",
-    "static/js/api.js",
     "static/js/app.js",
     "static/img/alimentos.png",
     "static/img/actividad.png",

@@ -1,0 +1,14 @@
+{
+  "name": "cardioprev-front",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Front de CardioPrev en TypeScript",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "npm run check && node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}
