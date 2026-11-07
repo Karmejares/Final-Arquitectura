@@ -1,7 +1,6 @@
 import type { RepositorioBorrador } from '../datos/RepositorioBorrador';
 import type { CatalogoSecciones } from '../dominio/CatalogoSecciones';
 import type { BarraNavegacion } from '../interfaz/BarraNavegacion';
-import type { FlujoEvaluacion } from '../servicios/FlujoEvaluacion';
 import type { TipoBarra } from '../tipos/TipoBarra';
 import { Vista } from './Vista';
 
@@ -9,20 +8,22 @@ interface DepsInicio {
   barra: BarraNavegacion;
   repoBorrador: RepositorioBorrador;
   catalogo: CatalogoSecciones;
-  flujo: FlujoEvaluacion;
 }
 
-/** Dashboard: avance del borrador y accesos a los módulos. */
+/** Dashboard (VISTA): muestra el avance del borrador y los accesos; avisa si el usuario pide ver su riesgo. */
 export class VistaInicio extends Vista {
   private readonly repoBorrador: RepositorioBorrador;
   private readonly catalogo: CatalogoSecciones;
-  private readonly flujo: FlujoEvaluacion;
+  private manejadorVerRiesgo: (() => void) | null = null;
 
   constructor(d: DepsInicio) {
     super(d.barra);
     this.repoBorrador = d.repoBorrador;
     this.catalogo = d.catalogo;
-    this.flujo = d.flujo;
+  }
+
+  alVerRiesgo(manejador: () => void): void {
+    this.manejadorVerRiesgo = manejador;
   }
 
   protected tipoBarra(): TipoBarra {
@@ -46,6 +47,6 @@ export class VistaInicio extends Vista {
         ${mod('presion', 'Presión Arterial', 'Consulta tus mediciones recientes', '#/presion')}
         ${mod('historial', 'Historial', 'Revisa tus evaluaciones previas', '#/historial')}
       </section></div>`);
-    this.$('#ver-riesgo').onclick = () => { this.flujo.verRiesgo(); };
+    this.$('#ver-riesgo').onclick = () => { this.manejadorVerRiesgo?.(); };
   }
 }

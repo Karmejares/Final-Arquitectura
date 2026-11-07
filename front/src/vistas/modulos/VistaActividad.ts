@@ -7,7 +7,7 @@ const ACT: readonly OpcionCampo[] = [['sedentario', 'Sedentario (poco o nada de 
 
 /** Pantalla de actividad física. */
 export class VistaActividad extends VistaModulo {
-  protected seccion(): SeccionId { return 'actividad'; }
+  seccion(): SeccionId { return 'actividad'; }
 
   protected titulo(): string { return 'Selecciona tu nivel de actividad física'; }
 
