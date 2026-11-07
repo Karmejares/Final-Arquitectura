@@ -7,10 +7,15 @@ import { Vista } from './Vista';
 export class VistaRegistro extends Vista {
   private manejadorEnvio: ((datos: DatosRegistro) => void) | null = null;
 
+  /** @param barra - Barra de navegación de la pantalla. */
   constructor(barra: BarraNavegacion) {
     super(barra);
   }
 
+  /**
+   * Registra quién atiende el envío del formulario.
+   * @param manejador - Recibe los datos escritos por el usuario.
+   */
   alEnviar(manejador: (datos: DatosRegistro) => void): void {
     this.manejadorEnvio = manejador;
   }

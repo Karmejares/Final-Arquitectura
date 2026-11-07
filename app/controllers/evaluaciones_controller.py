@@ -20,12 +20,14 @@ router = APIRouter(prefix="/api/evaluaciones", tags=["evaluaciones"])
 def crear_evaluacion(datos: DatosEvaluacion,
                      usuario: dict = Depends(usuario_actual),
                      c: Contenedor = Depends(get_contenedor)):
+    """HU-11 a HU-14: calcula el riesgo, lo guarda en el historial y devuelve el resultado."""
     return c.evaluaciones.evaluar(usuario["id"], datos)
 
 
 @router.get("")
 def listar_historial(usuario: dict = Depends(usuario_actual),
                      c: Contenedor = Depends(get_contenedor)) -> List[dict]:
+    """HU-15: lista las evaluaciones del usuario, de la más reciente a la más antigua."""
     return c.historial.listar(usuario["id"])
 
 
@@ -33,10 +35,24 @@ def listar_historial(usuario: dict = Depends(usuario_actual),
 @router.get("/presiones")
 def historial_presiones(usuario: dict = Depends(usuario_actual),
                         c: Contenedor = Depends(get_contenedor)) -> List[dict]:
+    """Lista los registros de presión arterial del usuario, del más reciente al más antiguo."""
     return c.historial.presiones(usuario["id"])
 
 
 def _buscar(c: Contenedor, usuario: dict, evaluacion_id: int) -> dict:
+    """Busca una evaluación del usuario.
+
+    Args:
+        c: contenedor de servicios.
+        usuario: usuario autenticado.
+        evaluacion_id: id de la evaluación.
+
+    Returns:
+        ``{'datos': {...}, 'resultado': {...}}``.
+
+    Raises:
+        HTTPException: 404 si no existe o pertenece a otro usuario.
+    """
     try:
         return c.historial.obtener(usuario["id"], evaluacion_id)
     except EvaluacionNoEncontrada:   # no existe o es de otro usuario: misma respuesta
@@ -47,6 +63,7 @@ def _buscar(c: Contenedor, usuario: dict, evaluacion_id: int) -> dict:
 def detalle(evaluacion_id: int,
             usuario: dict = Depends(usuario_actual),
             c: Contenedor = Depends(get_contenedor)):
+    """HU-15: devuelve el resultado de una evaluación. Responde 404 si no existe o es de otro usuario."""
     return _buscar(c, usuario, evaluacion_id)["resultado"]
 
 
@@ -54,6 +71,7 @@ def detalle(evaluacion_id: int,
 def reporte_pdf(evaluacion_id: int,
                 usuario: dict = Depends(usuario_actual),
                 c: Contenedor = Depends(get_contenedor)):
+    """HU-16: descarga el reporte PDF de una evaluación. Responde 404 si no existe o es de otro usuario."""
     fila = _buscar(c, usuario, evaluacion_id)
     pdf = generar_pdf(usuario["nombre"], fila["resultado"], fila["datos"])
     return Response(content=pdf, media_type="application/pdf", headers={

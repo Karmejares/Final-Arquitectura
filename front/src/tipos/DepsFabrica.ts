@@ -15,18 +15,32 @@ import type { FlujoEvaluacion } from '../servicios/FlujoEvaluacion';
 
 /** Dependencias que la fábrica reparte a las vistas incluidas las de módulo. */
 export interface DepsFabrica {
+  /** Barra de navegación compartida. */
   barra: BarraNavegacion;
+  /** Endpoints de cuenta. */
   apiAuth: ApiAuth;
+  /** Endpoints de evaluaciones. */
   apiEvaluaciones: ApiEvaluaciones;
+  /** Apertura y estado de la sesión. */
   sesion: AperturaSesion & EstadoSesion;
+  /** Persistencia del borrador. */
   repoBorrador: RepositorioBorrador;
+  /** Catálogo de secciones. */
   catalogo: CatalogoSecciones;
+  /** Flujo de envío de la evaluación. */
   flujo: FlujoEvaluacion;
+  /** Descarga de reportes PDF. */
   descarga: DescargaPdf;
+  /** Avisos en pantalla. */
   avisos: Avisos;
+  /** Cambio de ruta. */
   navegador: Navegador;
+  /** Presentación de errores. */
   errores: ManejadorErrores;
+  /** Lector de formularios. */
   lector: LectorFormulario;
+  /** Generador de campos de formulario. */
   campos: Campos;
+  /** Minutos de inactividad antes de cerrar la sesión. */
   minutos: number;
 }

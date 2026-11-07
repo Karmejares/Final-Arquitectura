@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/auth", tags=["autenticación"])
 
 @router.post("/registro", status_code=201)
 def registro(datos: RegistroIn, c: Contenedor = Depends(get_contenedor)):
+    """HU-01: crea una cuenta. Responde 409 si el correo ya está registrado."""
     try:
         c.auth.registrar(datos.nombre, datos.correo, datos.password)
     except CorreoYaRegistrado:
@@ -22,6 +23,7 @@ def registro(datos: RegistroIn, c: Contenedor = Depends(get_contenedor)):
 
 @router.post("/login", response_model=TokenOut)
 def login(datos: LoginIn, c: Contenedor = Depends(get_contenedor)):
+    """HU-02: inicia sesión y entrega el token JWT. Responde 401 si las credenciales son incorrectas."""
     try:
         token, nombre = c.auth.iniciar_sesion(datos.correo, datos.password)
     except CredencialesInvalidas:
@@ -31,4 +33,5 @@ def login(datos: LoginIn, c: Contenedor = Depends(get_contenedor)):
 
 @router.get("/me")
 def me(usuario: dict = Depends(usuario_actual)):
+    """Devuelve el id, el nombre y el correo del usuario autenticado."""
     return {"id": usuario["id"], "nombre": usuario["nombre"], "correo": usuario["correo"]}

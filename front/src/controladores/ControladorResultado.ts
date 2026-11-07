@@ -8,6 +8,15 @@ import type { VistaResultado } from '../vistas/VistaResultado';
 
 /** CONTROLADOR del resultado: consulta la evaluación, se la entrega a la vista y atiende la descarga del PDF. */
 export class ControladorResultado {
+  /**
+   * Se registra en los eventos de la vista.
+   * @param vista - Pantalla del resultado.
+   * @param api - Consulta de evaluaciones.
+   * @param descarga - Descarga del PDF.
+   * @param avisos - Avisos en pantalla.
+   * @param navegador - Cambio de ruta.
+   * @param errores - Presenta los errores de la consulta.
+   */
   constructor(
     private readonly vista: VistaResultado,
     private readonly api: ApiEvaluaciones,
@@ -20,6 +29,7 @@ export class ControladorResultado {
     vista.alDescargarPdf((id) => { void this.descarga.descargar(id); });
   }
 
+  /** Consulta la evaluación y la entrega a la vista; si no existe (404), vuelve al Dashboard. */
   private async cargar(): Promise<void> {
     try {
       const resultado = await this.api.evaluacion(this.vista.id());

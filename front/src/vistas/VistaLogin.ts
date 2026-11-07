@@ -6,10 +6,15 @@ import { Vista } from './Vista';
 export class VistaLogin extends Vista {
   private manejadorEnvio: ((correo: string, password: string) => void) | null = null;
 
+  /** @param barra - Barra de navegación de la pantalla. */
   constructor(barra: BarraNavegacion) {
     super(barra);
   }
 
+  /**
+   * Registra quién atiende el envío del formulario.
+   * @param manejador - Recibe el correo sin espacios en los extremos y la contraseña.
+   */
   alEnviar(manejador: (correo: string, password: string) => void): void {
     this.manejadorEnvio = manejador;
   }

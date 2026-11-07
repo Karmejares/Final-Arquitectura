@@ -5,6 +5,11 @@ import type { CierreSesion } from './CierreSesion';
 export class VigilanteInactividad {
   private temporizador: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * @param sesion - Estado de la sesión.
+   * @param cierre - Se ejecuta al vencer el conteo.
+   * @param minutos - Minutos de inactividad permitidos.
+   */
   constructor(private readonly sesion: EstadoSesion, private readonly cierre: CierreSesion, private readonly minutos: number) {}
 
   /** Registra los eventos de actividad que reinician el conteo. */
@@ -12,6 +17,7 @@ export class VigilanteInactividad {
     ['click', 'keydown', 'touchstart'].forEach((ev) => document.addEventListener(ev, () => this.reiniciar(), { passive: true }));
   }
 
+  /** Reinicia el conteo si hay sesión activa; sin sesión, solo lo detiene. */
   reiniciar(): void {
     if (this.temporizador !== null) clearTimeout(this.temporizador);
     if (!this.sesion.activa()) return;

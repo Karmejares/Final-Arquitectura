@@ -12,6 +12,16 @@ import type { VistaLogin } from '../vistas/VistaLogin';
  * y reacciona: bienvenida y salto al Dashboard, o el error en pantalla.
  */
 export class ControladorLogin {
+  /**
+   * Se registra en los eventos de la vista.
+   * @param vista - Pantalla de inicio de sesión.
+   * @param api - Endpoints de cuenta.
+   * @param sesion - Guarda la sesión abierta.
+   * @param repoBorrador - Borrador que se descarta al entrar.
+   * @param avisos - Avisos en pantalla.
+   * @param navegador - Cambio de ruta.
+   * @param errores - Presenta los errores que no son de credenciales.
+   */
   constructor(
     vista: VistaLogin,
     private readonly api: ApiAuth,
@@ -24,6 +34,11 @@ export class ControladorLogin {
     vista.alEnviar((correo, password) => { void this.entrar(correo, password); });
   }
 
+  /**
+   * Inicia sesión, descarta el borrador anterior y lleva al Dashboard.
+   * @param correo - Correo escrito por el usuario.
+   * @param password - Contraseña escrita por el usuario.
+   */
   private async entrar(correo: string, password: string): Promise<void> {
     this.avisos.limpiar();
     try {

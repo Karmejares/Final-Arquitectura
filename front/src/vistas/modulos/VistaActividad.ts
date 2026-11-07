@@ -3,6 +3,7 @@ import type { OpcionCampo } from '../../tipos/OpcionCampo';
 import type { SeccionId } from '../../tipos/SeccionId';
 import { VistaModulo } from './VistaModulo';
 
+/** Opciones del nivel de actividad. */
 const ACT: readonly OpcionCampo[] = [['sedentario', 'Sedentario (poco o nada de ejercicio)'], ['moderado', 'Moderado (ejercicio 1 a 3 veces por semana)'], ['activo', 'Activo (ejercicio 4 o más veces por semana)']];
 
 /** Pantalla de actividad física. */

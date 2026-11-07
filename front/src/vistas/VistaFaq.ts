@@ -4,9 +4,13 @@ import { Html } from '../interfaz/Html';
 import type { TipoBarra } from '../tipos/TipoBarra';
 import { Vista } from './Vista';
 
+/** Dependencias de la pantalla de preguntas frecuentes. */
 interface DepsFaq {
+  /** Barra de navegación compartida. */
   barra: BarraNavegacion;
+  /** Estado de la sesión: decide la barra y el enlace de volver. */
   sesion: EstadoSesion;
+  /** Minutos de inactividad que se explican en la respuesta sobre el cierre de sesión. */
   minutos: number;
 }
 
@@ -15,6 +19,7 @@ export class VistaFaq extends Vista {
   private readonly sesion: EstadoSesion;
   private readonly minutos: number;
 
+  /** @param d - Dependencias de la pantalla. */
   constructor(d: DepsFaq) {
     super(d.barra);
     this.sesion = d.sesion;

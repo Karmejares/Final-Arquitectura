@@ -29,6 +29,16 @@ from .models.services import AuthService, EvaluacionService, HistorialService
 
 def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
                token_minutos: Optional[int] = None) -> FastAPI:
+    """Crea la aplicación FastAPI y conecta sus dependencias (raíz de composición).
+
+    Args:
+        db_path: ruta de la base de datos; por defecto ``config.DB_PATH``.
+        secreto: clave que firma los JWT; por defecto ``config.SECRET_KEY``.
+        token_minutos: minutos de vida del token; por defecto ``config.TOKEN_MINUTOS``.
+
+    Returns:
+        La aplicación, lista para servir la API y el front estático.
+    """
     db = Database(db_path or config.DB_PATH)
     tokens = TokenService(secreto or config.SECRET_KEY, token_minutos or config.TOKEN_MINUTOS)
     usuarios = UsuarioRepository(db)
@@ -46,6 +56,7 @@ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
 
     @app.exception_handler(RequestValidationError)
     async def errores_de_validacion(request: Request, exc: RequestValidationError):
+        """Responde 422 con los errores de validación traducidos al español."""
         return JSONResponse(status_code=422, content={"detail": traducir_errores(exc.errors())})
 
     @app.middleware("http")
@@ -65,12 +76,14 @@ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
 
     @app.get("/api/salud", tags=["sistema"])
     def salud():
+        """Indica que el servicio está en ejecución."""
         return {"estado": "ok"}
 
     app.mount("/static", StaticFiles(directory=config.BASE_DIR / "static"), name="static")
 
     @app.get("/", include_in_schema=False)
     def index():
+        """Entrega la página única (SPA) del front."""
         return FileResponse(config.BASE_DIR / "static" / "index.html")
 
     return app

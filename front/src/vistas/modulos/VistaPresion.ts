@@ -4,6 +4,7 @@ import type { RegistroPresion } from '../../tipos/RegistroPresion';
 import type { SeccionId } from '../../tipos/SeccionId';
 import { VistaModulo } from './VistaModulo';
 
+/** Clase CSS y texto de cada estado de presión. */
 const FILA: Record<string, readonly [string, string]> = {
   normal: ['fila-verde', 'Normal'], alta: ['fila-roja', 'Alta'], baja: ['fila-amarilla', 'Baja'], elevada: ['fila-naranja', 'Elevada'],
 };
@@ -27,13 +28,20 @@ export class VistaPresion extends VistaModulo {
       ${c.numero('colesterol_hdl', 'Colesterol HDL (mg/dL)', d.colesterol_hdl ?? '', 'min="10" max="200"')}`;
   }
 
+  /**
+   * Pinta el formulario y, fuera del flujo secuencial, el sitio de la tabla de registros.
+   * @param seq - Si la pantalla se abre en el flujo secuencial.
+   */
   protected override contenido(seq: boolean): void {
     super.contenido(seq);
     if (seq) return;
     this.$('.tarjeta').insertAdjacentHTML('afterend', `<div class="tarjeta-plana" style="margin-top:1.4rem"><h2>Historial de registros</h2><div id="tabla-p" class="muted">Cargando…</div></div>`);
   }
 
-  /** El controlador entrega los registros ya consultados; la vista solo los dibuja. */
+  /**
+   * El controlador entrega los registros ya consultados; la vista solo los dibuja.
+   * @param p - Registros de presión.
+   */
   mostrarPresiones(p: RegistroPresion[]): void {
     const esc = Html.esc;
     this.$('#tabla-p').outerHTML = p.length ? `<div class="tabla-scroll"><table><thead><tr><th>Fecha</th><th>Sistólica</th><th>Diastólica</th><th>Estado</th></tr></thead><tbody>${
@@ -41,6 +49,7 @@ export class VistaPresion extends VistaModulo {
     }</tbody></table></div>` : '<p class="muted">Aún no tienes registros. Se agregan al calcular tu evaluación.</p>';
   }
 
+  /** Indica en la tabla que no se pudieron cargar los registros. */
   mostrarErrorPresiones(): void {
     this.$('#tabla-p').textContent = 'No se pudo cargar el historial.';
   }

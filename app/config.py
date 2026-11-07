@@ -1,4 +1,10 @@
-"""Configuración central. Se puede sobrescribir con variables de entorno."""
+"""Configuración central. Se puede sobrescribir con variables de entorno.
+
+Variables de entorno:
+    CARDIOPREV_SECRET: clave que firma los JWT; en producción debe cambiarse.
+    CARDIOPREV_TOKEN_MIN: minutos sin actividad antes de que expire la sesión (15 por defecto).
+    CARDIOPREV_DB: ruta del archivo SQLite (``cardioprev.db`` en la raíz del proyecto por defecto).
+"""
 import os
 from pathlib import Path
 

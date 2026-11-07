@@ -23,11 +23,21 @@ COLOR_NIVEL = {"verde": "#2f7d32", "amarillo": "#a37a00", "rojo": "#c62828"}
 
 
 def _t(texto) -> str:
+    """Convierte un valor a texto y lo escapa para usarlo dentro de un ``Paragraph``."""
     return escape(str(texto))
 
 
 def generar_pdf(nombre_usuario: str, resultado: dict, datos: dict) -> bytes:
-    """Devuelve los bytes de un PDF con los datos, el nivel de riesgo y las recomendaciones."""
+    """Devuelve los bytes de un PDF con los datos, el nivel de riesgo y las recomendaciones.
+
+    Args:
+        nombre_usuario: nombre que se imprime como paciente.
+        resultado: resultado de la evaluación, como diccionario.
+        datos: datos que ingresó el usuario, como diccionario.
+
+    Returns:
+        El contenido del archivo PDF.
+    """
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2.2 * cm, rightMargin=2.2 * cm,
                             topMargin=1.8 * cm, bottomMargin=1.8 * cm,

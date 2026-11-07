@@ -37,4 +37,14 @@ flowchart LR
 Regla de oro: el controlador **solo habla con servicios**, nunca con repositorios. La prueba
 `tests/test_historial.py::TestSeparacionMVC` lo verifica automáticamente.
 
+## Documentación de código
+
+```bash
+python generar_docs.py        # backend (pydoc): docs/api/python/app.html
+cd front && npm run docs      # front (JSDoc con TypeDoc): docs/api/front/index.html
+```
+
+TypeDoc lee los comentarios JSDoc de `front/src` y corre con TypeScript 6 mediante `npx`, porque aún no es
+compatible con el TypeScript 7 del proyecto. La salida es generada: `docs/api/` no se versiona.
+
 > CardioPrev no reemplaza el diagnóstico ni la consulta con un profesional de la salud.

@@ -14,6 +14,15 @@ import type { VistaModulo } from '../vistas/modulos/VistaModulo';
  *   reaccionar: seguir al siguiente paso, enviar la evaluación o volver al Dashboard.
  */
 export class ControladorModulo {
+  /**
+   * Se registra en los eventos de la vista.
+   * @param vista - Pantalla del módulo.
+   * @param repoBorrador - Persistencia del borrador.
+   * @param catalogo - Campos de cada sección y orden del flujo.
+   * @param flujo - Envío de la evaluación al terminar el último paso.
+   * @param avisos - Avisos en pantalla.
+   * @param navegador - Cambio de ruta.
+   */
   constructor(
     protected readonly vista: VistaModulo,
     private readonly repoBorrador: RepositorioBorrador,
@@ -25,6 +34,11 @@ export class ControladorModulo {
     vista.alEnviar((datos, seq) => { void this.guardar(datos, seq); });
   }
 
+  /**
+   * Comprueba que no falten campos, guarda la sección y decide el paso siguiente.
+   * @param datos - Campos leídos del formulario.
+   * @param seq - Si el usuario va en el flujo secuencial (paso a paso).
+   */
   private async guardar(datos: DatosSeccion, seq: boolean): Promise<void> {
     this.avisos.limpiar();
     const seccion = this.vista.seccion();

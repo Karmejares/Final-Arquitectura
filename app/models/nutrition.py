@@ -13,6 +13,14 @@ AJUSTE_GENERO = {Genero.masculino: 5, Genero.femenino: -161, Genero.otro: -78}
 
 
 def calcular_nutricion(d: DatosEvaluacion) -> Nutricion:
+    """Estima las calorías diarias y su reparto en macronutrientes (HU-07).
+
+    Args:
+        d: datos de la evaluación (peso, altura, edad, género y actividad).
+
+    Returns:
+        Las calorías y los gramos diarios de proteínas, grasas y carbohidratos.
+    """
     tmb = 10 * d.peso_kg + 6.25 * d.altura_cm - 5 * d.edad + AJUSTE_GENERO[d.genero]
     kcal = round(tmb * FACTOR_ACTIVIDAD[d.actividad])
     return Nutricion(

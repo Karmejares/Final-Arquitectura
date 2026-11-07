@@ -4,21 +4,30 @@ import type { ResultadoEvaluacion } from '../tipos/ResultadoEvaluacion';
 import type { TipoBarra } from '../tipos/TipoBarra';
 import { Vista } from './Vista';
 
+/** Texto que se muestra para cada nivel de riesgo. */
 const NIVELES: Record<string, string> = { bajo: 'Riesgo Bajo', medio: 'Riesgo Medio', alto: 'Riesgo Alto' };
 
 /** Pantalla con el resultado de una evaluación (VISTA): el controlador consulta y ella dibuja. */
 export class VistaResultado extends Vista {
   private manejadorPdf: ((id: string) => void) | null = null;
 
+  /**
+   * @param barra - Barra de navegación de la pantalla.
+   * @param idEvaluacion - Id de la evaluación que se muestra.
+   */
   constructor(barra: BarraNavegacion, private readonly idEvaluacion: string) {
     super(barra);
   }
 
-  /** Id de la evaluación que esta pantalla muestra (el controlador lo necesita para consultarla). */
+  /** @returns Id de la evaluación que esta pantalla muestra (el controlador lo necesita para consultarla). */
   id(): string {
     return this.idEvaluacion;
   }
 
+  /**
+   * Registra quién atiende la descarga del PDF.
+   * @param manejador - Recibe el id de la evaluación.
+   */
   alDescargarPdf(manejador: (id: string) => void): void {
     this.manejadorPdf = manejador;
   }
@@ -31,6 +40,10 @@ export class VistaResultado extends Vista {
     this.pintar('<p class="centrado muted">Cargando resultado…</p>');
   }
 
+  /**
+   * Dibuja el resultado y conecta el botón del PDF.
+   * @param r - Resultado ya consultado.
+   */
   mostrarResultado(r: ResultadoEvaluacion): void {
     const esc = Html.esc;
     const nombreNivel = NIVELES[r.nivel] || r.nivel;

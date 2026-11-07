@@ -3,7 +3,9 @@ import type { OpcionCampo } from '../../tipos/OpcionCampo';
 import type { SeccionId } from '../../tipos/SeccionId';
 import { VistaModulo } from './VistaModulo';
 
+/** Opciones de frecuencia de consumo. */
 const FREC: readonly OpcionCampo[] = [['nunca', 'Nunca'], ['ocasionalmente', 'Ocasionalmente'], ['diariamente', 'Diariamente']];
+/** Opciones de consumo de agua. */
 const AGUA: readonly OpcionCampo[] = [['menos_de_1_litro', 'Menos de 1 litro'], ['de_1_a_2_litros', 'De 1 a 2 litros'], ['mas_de_2_litros', 'Más de 2 litros']];
 
 /** Pantalla de hábitos alimenticios. */

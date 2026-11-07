@@ -1,7 +1,7 @@
 """PATRÓN OBSERVER (HU-09, HU-14).
 
 Rol del patrón:
-  - Subject ................... EvaluacionService (app/services.py): suscribir / _notificar
+  - Subject ................... EvaluacionService (app/models/services.py): suscribir / _notificar
   - Observer (interfaz) ....... EvaluacionObserver
   - ConcreteObserver .......... AlertaPresionObserver, HistorialObserver
 
@@ -22,9 +22,18 @@ from .repositories import EvaluacionRepository
 
 
 class EvaluacionObserver(ABC):
+    """Observer: efecto que se ejecuta al terminar una evaluación."""
+
     @abstractmethod
     def actualizar(self, usuario_id: int, datos: DatosEvaluacion,
-                   resultado: ResultadoEvaluacion) -> None: ...
+                   resultado: ResultadoEvaluacion) -> None:
+        """Reacciona a una evaluación terminada; puede modificar el resultado.
+
+        Args:
+            usuario_id: id del usuario evaluado.
+            datos: datos que ingresó el usuario.
+            resultado: resultado calculado.
+        """
 
 
 class AlertaPresionObserver(EvaluacionObserver):
@@ -45,9 +54,14 @@ class AlertaPresionObserver(EvaluacionObserver):
 
 
 class HistorialObserver(EvaluacionObserver):
-    """HU-14: guarda automáticamente la evaluación del usuario con su fecha y resultados."""
+    """HU-14: guarda automáticamente la evaluación del usuario y asigna ``resultado.id``."""
 
     def __init__(self, repositorio: EvaluacionRepository):
+        """Recibe dónde se guardan las evaluaciones.
+
+        Args:
+            repositorio: repositorio de evaluaciones.
+        """
         self._repo = repositorio
 
     def actualizar(self, usuario_id, datos, resultado):

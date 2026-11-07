@@ -5,7 +5,8 @@
   "description": "Front de CardioPrev en TypeScript",
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "npm run check && node build.mjs"
+    "build": "npm run check && node build.mjs",
+    "docs": "npx --yes --package=typescript@6.0.3 --package=typedoc@0.28.20 typedoc"
   },
   "devDependencies": {
     "esbuild": "0.28.2",

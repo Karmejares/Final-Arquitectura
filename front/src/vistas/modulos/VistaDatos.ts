@@ -6,10 +6,15 @@ import type { OpcionCampo } from '../../tipos/OpcionCampo';
 import type { SeccionId } from '../../tipos/SeccionId';
 import { VistaModulo } from './VistaModulo';
 
+/** Opciones de género. */
 const GEN: readonly OpcionCampo[] = [['masculino', 'Masculino'], ['femenino', 'Femenino'], ['otro', 'Otro']];
 
 /** Pantalla de datos personales. */
 export class VistaDatos extends VistaModulo {
+  /**
+   * @param d - Dependencias de la pantalla.
+   * @param sesion - De aquí sale el nombre para el saludo.
+   */
   constructor(d: DepsModulo, private readonly sesion: EstadoSesion) {
     super(d);
   }
@@ -22,6 +27,7 @@ export class VistaDatos extends VistaModulo {
 
   protected override numericos(): string[] { return ['anio_nacimiento', 'peso_kg', 'altura_cm']; }
 
+  /** @returns Saludo con el nombre del usuario. */
   protected override antes(): string {
     return `<div class="alerta alerta-ok">Bienvenido ${Html.esc(this.sesion.nombre())} 👋</div>`;
   }

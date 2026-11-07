@@ -3,7 +3,7 @@
 Rol del patrón:
   - Strategy (interfaz) ........ FactorStrategy
   - ConcreteStrategy ........... EdadStrategy, ImcStrategy, PresionStrategy, ...
-  - Context .................... CalculadorRiesgo (app/services.py)
+  - Context .................... CalculadorRiesgo (app/models/services.py)
 
 Cada factor de riesgo sabe puntuarse a sí mismo y qué recomendar. Para agregar un
 factor nuevo basta crear una clase y registrarla: el calculador no se modifica
@@ -19,19 +19,45 @@ from .models import (ActividadFisica, Alimentacion, DatosEvaluacion,
 
 
 class FactorStrategy(ABC):
+    """Strategy: factor de riesgo que sabe puntuarse y qué recomendar.
+
+    Attributes:
+        nombre: nombre visible del factor.
+        puntos_maximos: máximo de puntos que puede aportar.
+    """
+
     nombre: str
     puntos_maximos: int
 
     @abstractmethod
     def evaluar(self, d: DatosEvaluacion) -> FactorResultado:
-        """Devuelve el puntaje (y recomendación opcional) de un factor."""
+        """Devuelve el puntaje (y recomendación opcional) de un factor.
+
+        Args:
+            d: datos de la evaluación.
+
+        Returns:
+            El aporte del factor.
+        """
 
     def _r(self, valor: str, puntos: int, rec: str | None = None) -> FactorResultado:
+        """Arma el aporte del factor; la recomendación solo se incluye si suma puntos.
+
+        Args:
+            valor: valor del usuario, como texto.
+            puntos: puntos que suma el factor.
+            rec: recomendación para el usuario.
+
+        Returns:
+            El aporte del factor.
+        """
         return FactorResultado(factor=self.nombre, valor=valor, puntos=puntos,
                                recomendacion=rec if puntos > 0 else None)
 
 
 class EdadStrategy(FactorStrategy):
+    """0 puntos con menos de 40 años, 1 con menos de 55, 2 con menos de 65 y 3 desde 65."""
+
     nombre, puntos_maximos = "Edad", 3
 
     def evaluar(self, d):
@@ -42,6 +68,8 @@ class EdadStrategy(FactorStrategy):
 
 
 class ImcStrategy(FactorStrategy):
+    """0 puntos con IMC menor que 25, 1 con menor que 30 y 2 desde 30."""
+
     nombre, puntos_maximos = "IMC", 2
 
     def evaluar(self, d):
@@ -52,6 +80,8 @@ class ImcStrategy(FactorStrategy):
 
 
 class PresionStrategy(FactorStrategy):
+    """3 puntos desde 140/90, 2 desde 130/80, 1 con sistólica desde 120 y 0 en otro caso."""
+
     nombre, puntos_maximos = "Presión arterial", 3
 
     def evaluar(self, d):
@@ -69,6 +99,8 @@ class PresionStrategy(FactorStrategy):
 
 
 class ColesterolStrategy(FactorStrategy):
+    """0 puntos con total menor que 200, 1 con menor que 240 y 2 desde 240; suma 1 si el HDL es menor que 40."""
+
     nombre, puntos_maximos = "Colesterol", 3
 
     def evaluar(self, d):
@@ -81,6 +113,8 @@ class ColesterolStrategy(FactorStrategy):
 
 
 class TabacoStrategy(FactorStrategy):
+    """3 puntos si la persona fuma."""
+
     nombre, puntos_maximos = "Tabaco", 3
 
     def evaluar(self, d):
@@ -89,6 +123,8 @@ class TabacoStrategy(FactorStrategy):
 
 
 class AlcoholStrategy(FactorStrategy):
+    """1 punto si la persona consume alcohol."""
+
     nombre, puntos_maximos = "Alcohol", 1
 
     def evaluar(self, d):
@@ -97,6 +133,8 @@ class AlcoholStrategy(FactorStrategy):
 
 
 class DiabetesStrategy(FactorStrategy):
+    """2 puntos si la persona tiene diabetes."""
+
     nombre, puntos_maximos = "Diabetes", 2
 
     def evaluar(self, d):
@@ -105,6 +143,8 @@ class DiabetesStrategy(FactorStrategy):
 
 
 class AntecedentesStrategy(FactorStrategy):
+    """2 puntos si hay antecedentes familiares."""
+
     nombre, puntos_maximos = "Antecedentes familiares", 2
 
     def evaluar(self, d):
@@ -114,6 +154,8 @@ class AntecedentesStrategy(FactorStrategy):
 
 
 class AlimentacionStrategy(FactorStrategy):
+    """0 puntos con alimentación saludable, 1 con regular y 2 con poco saludable."""
+
     nombre, puntos_maximos = "Alimentación", 2
 
     def evaluar(self, d):
@@ -124,6 +166,8 @@ class AlimentacionStrategy(FactorStrategy):
 
 
 class ActividadStrategy(FactorStrategy):
+    """0 puntos con nivel activo, 1 con moderado y 2 con sedentario."""
+
     nombre, puntos_maximos = "Actividad física", 2
 
     def evaluar(self, d):
@@ -134,6 +178,11 @@ class ActividadStrategy(FactorStrategy):
 
 
 def estrategias_por_defecto() -> List[FactorStrategy]:
+    """Crea los diez factores de riesgo del cálculo.
+
+    Returns:
+        Una instancia de cada estrategia, en el orden en que se muestran.
+    """
     return [EdadStrategy(), ImcStrategy(), PresionStrategy(), ColesterolStrategy(),
             TabacoStrategy(), AlcoholStrategy(), DiabetesStrategy(),
             AntecedentesStrategy(), AlimentacionStrategy(), ActividadStrategy()]

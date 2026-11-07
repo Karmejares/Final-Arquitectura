@@ -18,10 +18,19 @@ ETIQUETAS: Dict[str, str] = {
 
 
 def _num(v) -> str:
+    """Da formato a un límite numérico sin ceros sobrantes; cualquier otro valor lo pasa a texto."""
     return f"{v:g}" if isinstance(v, (int, float)) else str(v)
 
 
 def _mensaje(err: dict) -> str:
+    """Traduce un error de Pydantic a un motivo en español, sin el nombre del campo.
+
+    Args:
+        err: error tal como lo entrega ``RequestValidationError.errors()``.
+
+    Returns:
+        El motivo del error (p. ej. "es obligatorio").
+    """
     tipo = err.get("type", "")
     ctx = err.get("ctx") or {}
     if err.get("input") is None and tipo != "value_error":
@@ -52,6 +61,15 @@ def _mensaje(err: dict) -> str:
 
 
 def traducir_errores(errores: List[dict]) -> List[str]:
+    """Convierte los errores de validación en mensajes listos para mostrar.
+
+    Args:
+        errores: lista de errores de Pydantic.
+
+    Returns:
+        Un mensaje por error: "Etiqueta: motivo" si el campo está en ``ETIQUETAS``; si no
+        (p. ej. reglas entre varios campos), solo el motivo con mayúscula inicial.
+    """
     mensajes = []
     for e in errores:
         campo = next((str(p) for p in reversed(e.get("loc", ())) if str(p) in ETIQUETAS), None)

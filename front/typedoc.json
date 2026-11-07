@@ -1,0 +1,14 @@
+{
+  "name": "CardioPrev · Front",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "exclude": ["src/main.ts"],
+  "tsconfig": "tsconfig.json",
+  "out": "../docs/api/front",
+  "readme": "none",
+  "validation": {
+    "notExported": false,
+    "invalidLink": true,
+    "notDocumented": true
+  }
+}

@@ -4,9 +4,13 @@ import type { BarraNavegacion } from '../interfaz/BarraNavegacion';
 import type { TipoBarra } from '../tipos/TipoBarra';
 import { Vista } from './Vista';
 
+/** Dependencias del Dashboard. */
 interface DepsInicio {
+  /** Barra de navegación compartida. */
   barra: BarraNavegacion;
+  /** De aquí sale el avance del borrador. */
   repoBorrador: RepositorioBorrador;
+  /** Catálogo de secciones. */
   catalogo: CatalogoSecciones;
 }
 
@@ -16,12 +20,17 @@ export class VistaInicio extends Vista {
   private readonly catalogo: CatalogoSecciones;
   private manejadorVerRiesgo: (() => void) | null = null;
 
+  /** @param d - Dependencias de la pantalla. */
   constructor(d: DepsInicio) {
     super(d.barra);
     this.repoBorrador = d.repoBorrador;
     this.catalogo = d.catalogo;
   }
 
+  /**
+   * Registra quién atiende el botón «Riesgo Cardiovascular».
+   * @param manejador - Se llama al pulsar el botón.
+   */
   alVerRiesgo(manejador: () => void): void {
     this.manejadorVerRiesgo = manejador;
   }

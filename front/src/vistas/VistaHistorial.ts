@@ -4,16 +4,22 @@ import type { ItemHistorial } from '../tipos/ItemHistorial';
 import type { TipoBarra } from '../tipos/TipoBarra';
 import { Vista } from './Vista';
 
+/** Clase CSS de la fila según el color del semáforo. */
 const CLASES: Record<string, string> = { verde: 'fila-verde', amarillo: 'fila-amarilla', rojo: 'fila-roja' };
 
 /** Pantalla con la lista de evaluaciones previas (VISTA): el controlador consulta y ella dibuja. */
 export class VistaHistorial extends Vista {
   private manejadorPdf: ((id: string) => void) | null = null;
 
+  /** @param barra - Barra de navegación de la pantalla. */
   constructor(barra: BarraNavegacion) {
     super(barra);
   }
 
+  /**
+   * Registra quién atiende la descarga del PDF.
+   * @param manejador - Recibe el id de la evaluación.
+   */
   alDescargarPdf(manejador: (id: string) => void): void {
     this.manejadorPdf = manejador;
   }
@@ -27,6 +33,10 @@ export class VistaHistorial extends Vista {
       <p class="enlace-centro"><a href="#/inicio">Volver al Dashboard</a></p></div></div>`);
   }
 
+  /**
+   * Dibuja la tabla del historial, o un mensaje si está vacío.
+   * @param h - Evaluaciones ya consultadas.
+   */
   mostrarHistorial(h: ItemHistorial[]): void {
     const esc = Html.esc;
     this.$('#cont').outerHTML = h.length ? `<div class="tabla-scroll"><table><thead><tr><th>Fecha</th><th>Puntaje</th><th>Nivel</th><th>Acciones</th></tr></thead><tbody>${

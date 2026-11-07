@@ -26,8 +26,14 @@ import type { VistaModulo } from '../vistas/modulos/VistaModulo';
  * La vista y el controlador se crean juntos: el controlador se registra en la vista y ya no hace falta tocarlo.
  */
 export class FabricaVistas {
+  /** @param d - Dependencias que se reparten a vistas y controladores. */
   constructor(private readonly d: DepsFabrica) {}
 
+  /**
+   * Crea la pantalla de una ruta con su controlador ya conectado.
+   * @param ruta - Ruta sin `#` y sin query, p. ej. `/inicio`.
+   * @returns La vista, o null si la ruta no existe.
+   */
   crear(ruta: string): Vista | null {
     const d = this.d;
     const mod: DepsModulo = { barra: d.barra, catalogo: d.catalogo, repoBorrador: d.repoBorrador, lector: d.lector, campos: d.campos };
@@ -72,7 +78,11 @@ export class FabricaVistas {
     }
   }
 
-  /** Pantallas de módulo sin lógica propia: todas comparten ControladorModulo. */
+  /**
+   * Pantallas de módulo sin lógica propia: todas comparten ControladorModulo.
+   * @param vista - Pantalla del módulo.
+   * @returns La misma vista, ya conectada.
+   */
   private conControlador(vista: VistaModulo): VistaModulo {
     const d = this.d;
     new ControladorModulo(vista, d.repoBorrador, d.catalogo, d.flujo, d.avisos, d.navegador);

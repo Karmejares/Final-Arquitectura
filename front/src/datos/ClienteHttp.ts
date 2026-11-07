@@ -5,8 +5,17 @@ import { ApiError } from './ApiError';
 
 /** Hace la petición HTTP: cabeceras, token renovado y fallos como ApiError. */
 export class ClienteHttp implements Transporte {
+  /** @param fuente - De dónde sale el token y a dónde va el renovado. */
   constructor(private readonly fuente: FuenteToken) {}
 
+  /**
+   * Envía una petición con el token de la sesión, si lo hay, y guarda el token renovado.
+   * @typeParam T - Tipo de la respuesta esperada.
+   * @param ruta - Ruta del backend.
+   * @param opciones - Método (GET por defecto), cuerpo JSON y si la respuesta se lee como Blob.
+   * @returns Respuesta JSON, o Blob si se pidió.
+   * @throws ApiError si no se puede conectar (estado 0) o el servidor responde con error.
+   */
   async peticion<T>(ruta: string, { metodo = 'GET', cuerpo = null, blob = false }: OpcionesPeticion = {}): Promise<T> {
     const cabeceras: Record<string, string> = {};
     if (cuerpo) cabeceras['Content-Type'] = 'application/json';

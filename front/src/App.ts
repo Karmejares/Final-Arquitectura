@@ -17,10 +17,12 @@ import { DescargaPdf } from './servicios/DescargaPdf';
 import { FlujoEvaluacion } from './servicios/FlujoEvaluacion';
 import { VigilanteInactividad } from './servicios/VigilanteInactividad';
 
+/** Minutos sin actividad antes de cerrar la sesión (mismo valor por defecto que `TOKEN_MINUTOS` en el backend). */
 const MINUTOS_INACTIVIDAD = 15;
 
 /** Raíz de composición: crea los objetos, los conecta y arranca. */
 export class App {
+  /** Crea las dependencias, suscribe los observadores de cierre y arranca el vigilante y el enrutador. */
   iniciar(): void {
     const almacen = new AlmacenSesion();
     const sesion = new Sesion(almacen);

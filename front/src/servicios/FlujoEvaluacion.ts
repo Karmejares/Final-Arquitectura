@@ -8,6 +8,14 @@ import type { Navegador } from '../interfaz/Navegador';
 
 /** Orquesta el envío de la evaluación y la ida al resultado más reciente. */
 export class FlujoEvaluacion {
+  /**
+   * @param repo - Persistencia del borrador.
+   * @param catalogo - Títulos de las secciones.
+   * @param api - Endpoints de evaluaciones.
+   * @param avisos - Avisos en pantalla.
+   * @param navegador - Cambio de ruta.
+   * @param errores - Presenta los errores de las peticiones.
+   */
   constructor(
     private readonly repo: RepositorioBorrador,
     private readonly catalogo: CatalogoSecciones,
@@ -32,6 +40,7 @@ export class FlujoEvaluacion {
     } catch (e) { this.errores.mostrar(e); }
   }
 
+  /** Envía el borrador completo y lleva al resultado. Si está incompleto, o el envío falla sin que la sesión haya vencido, vuelve al Dashboard. */
   async enviar(): Promise<void> {
     const b = this.repo.leer();
     if (!b.todoCompleto()) { this.avisos.avisarLuego('Completa todos los módulos para calcular tu riesgo.', 'aviso'); return this.navegador.ir('#/inicio'); }

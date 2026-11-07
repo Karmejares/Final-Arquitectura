@@ -16,6 +16,14 @@ CORREO_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 # ----------------------------------------------------------------- cuenta ---
 class RegistroIn(BaseModel):
+    """Datos para crear una cuenta (HU-01).
+
+    Attributes:
+        nombre: nombre visible, de 2 a 80 caracteres.
+        correo: correo con formato válido, de máximo 120 caracteres.
+        password: contraseña de 8 a 72 caracteres.
+    """
+
     nombre: str = Field(..., min_length=2, max_length=80)
     correo: str = Field(..., pattern=CORREO_REGEX, max_length=120)
     password: str = Field(..., min_length=8, max_length=72)
@@ -23,45 +31,65 @@ class RegistroIn(BaseModel):
     @field_validator("nombre", "correo", mode="before")
     @classmethod
     def _limpiar(cls, v):
+        """Quita los espacios de los extremos antes de validar."""
         return v.strip() if isinstance(v, str) else v
 
 
 class LoginIn(BaseModel):
+    """Credenciales para iniciar sesión (HU-02)."""
+
     correo: str = Field(..., min_length=3, max_length=120)
     password: str = Field(..., min_length=1, max_length=72)
 
 
 class TokenOut(BaseModel):
+    """Respuesta del inicio de sesión.
+
+    Attributes:
+        token: JWT de la sesión.
+        nombre: nombre del usuario.
+    """
+
     token: str
     nombre: str
 
 
 # ------------------------------------------------------------ evaluación ---
 class Genero(str, Enum):
+    """Género; ajusta la estimación de calorías."""
+
     masculino = "masculino"
     femenino = "femenino"
     otro = "otro"
 
 
 class Alimentacion(str, Enum):
+    """Valoración general de la alimentación."""
+
     saludable = "saludable"
     regular = "regular"
     poco_saludable = "poco_saludable"
 
 
 class ActividadFisica(str, Enum):
+    """Nivel de actividad física."""
+
     sedentario = "sedentario"
     moderado = "moderado"
     activo = "activo"
 
 
 class Frecuencia(str, Enum):
+    """Frecuencia de consumo de un alimento o bebida."""
+
     nunca = "nunca"
     ocasionalmente = "ocasionalmente"
     diariamente = "diariamente"
 
 
 class ConsumoAgua(str, Enum):
+    """Cantidad de agua que se toma al día."""
+
     menos_de_1_litro = "menos_de_1_litro"
     de_1_a_2_litros = "de_1_a_2_litros"
     mas_de_2_litros = "mas_de_2_litros"
@@ -75,7 +103,21 @@ _AGUA = {ConsumoAgua.mas_de_2_litros: 0, ConsumoAgua.de_1_a_2_litros: 1, Consumo
 
 def clasificar_alimentacion(frutas: Frecuencia, verduras: Frecuencia, comida_rapida: Frecuencia,
                             bebidas_azucaradas: Frecuencia, agua: ConsumoAgua) -> Alimentacion:
-    """Resume las cinco preguntas de hábitos alimenticios en saludable, regular o poco saludable."""
+    """Resume las cinco preguntas de hábitos alimenticios en saludable, regular o poco saludable.
+
+    Cada respuesta suma de 0 (mejor) a 2 (peor): hasta 3 puntos es saludable, hasta 6 es
+    regular y desde 7 es poco saludable.
+
+    Args:
+        frutas: frecuencia de consumo de frutas.
+        verduras: frecuencia de consumo de verduras.
+        comida_rapida: frecuencia de consumo de comida rápida.
+        bebidas_azucaradas: frecuencia de consumo de bebidas azucaradas.
+        agua: cantidad de agua que se toma al día.
+
+    Returns:
+        La valoración general de la alimentación.
+    """
     puntos = (_FRUTAS_VERDURAS[frutas] + _FRUTAS_VERDURAS[verduras]
               + _COMIDA_RAPIDA_BEBIDAS[comida_rapida] + _COMIDA_RAPIDA_BEBIDAS[bebidas_azucaradas]
               + _AGUA[agua])                       # 0 a 10
@@ -92,6 +134,8 @@ class DatosEvaluacion(BaseModel):
     Hábitos alimenticios: se envían las cinco respuestas (frutas, verduras, comida rápida,
     bebidas azucaradas y agua) y `alimentacion` se calcula a partir de ellas; también se
     acepta enviar solo `alimentacion` (saludable, regular o poco_saludable).
+
+    Las presiones se expresan en mmHg y los colesteroles en mg/dL.
     """
 
     anio_nacimiento: int = Field(..., ge=1900, le=date.today().year)
@@ -116,6 +160,15 @@ class DatosEvaluacion(BaseModel):
 
     @model_validator(mode="after")
     def _coherencia(self) -> "DatosEvaluacion":
+        """Calcula ``alimentacion`` y valida las reglas que involucran a varios campos.
+
+        Returns:
+            La misma instancia, con ``alimentacion`` definida.
+
+        Raises:
+            ValueError: si las respuestas de hábitos están incompletas, la sistólica no supera a la
+                diastólica, el HDL supera al total o la persona es menor de 18 años.
+        """
         detalle = [self.frutas, self.verduras, self.comida_rapida, self.bebidas_azucaradas, self.agua]
         if all(x is not None for x in detalle):
             self.alimentacion = clasificar_alimentacion(*detalle)
@@ -132,14 +185,25 @@ class DatosEvaluacion(BaseModel):
     # Valores derivados (HU-04): el usuario no los ingresa.
     @property
     def edad(self) -> int:
+        """Edad en años: año actual menos año de nacimiento."""
         return date.today().year - self.anio_nacimiento
 
     @property
     def imc(self) -> float:
+        """Índice de masa corporal en kg/m², redondeado a un decimal."""
         return round(self.peso_kg / ((self.altura_cm / 100) ** 2), 1)
 
 
 class FactorResultado(BaseModel):
+    """Aporte de un factor de riesgo al puntaje.
+
+    Attributes:
+        factor: nombre del factor.
+        valor: valor del usuario, como texto.
+        puntos: puntos que suma al puntaje.
+        recomendacion: consejo para el usuario; None si el factor no suma puntos.
+    """
+
     factor: str
     valor: str
     puntos: int
@@ -155,6 +219,25 @@ class Nutricion(BaseModel):
 
 
 class ResultadoEvaluacion(BaseModel):
+    """Resultado completo de una evaluación (respuesta de la API).
+
+    Attributes:
+        id: id en el historial; None hasta que se guarda.
+        fecha: fecha y hora en formato ISO.
+        edad: edad calculada.
+        imc: IMC calculado.
+        puntaje: suma de los puntos de los factores.
+        puntaje_maximo: máximo posible con las estrategias activas.
+        nivel: "bajo", "medio" o "alto".
+        color: "verde", "amarillo" o "rojo".
+        mensaje: mensaje general del nivel.
+        factores: aporte de cada factor.
+        recomendaciones: las generales del nivel, seguidas de las de cada factor.
+        alertas: alertas de presión arterial.
+        nutricion: estimación diaria de calorías y macronutrientes.
+        aviso: advertencia de que la estimación no reemplaza la consulta médica.
+    """
+
     id: Optional[int] = None
     fecha: str
     edad: int

@@ -3,8 +3,16 @@ import type { TipoBarra } from '../tipos/TipoBarra';
 
 /** Pinta una de las tres barras de navegación y conecta el botón de salir. */
 export class BarraNavegacion {
+  /**
+   * @param contenedor - Elemento donde se pinta la barra.
+   * @param cierre - Se ejecuta al pulsar el botón de salir.
+   */
   constructor(private readonly contenedor: HTMLElement, private readonly cierre: CierreSesion) {}
 
+  /**
+   * Pinta la barra y conecta el botón de salir, si la variante lo tiene.
+   * @param tipo - Variante de la barra.
+   */
   mostrar(tipo: TipoBarra): void {
     const b = this.contenedor;
     if (tipo === 'auth') {
