@@ -1,8 +1,11 @@
-"""Capa de servicios: orquesta los patrones y las reglas de negocio.
+"""Capa de servicios (parte del MODELO en MVC): orquesta los patrones y las reglas de negocio.
+
+Los controladores (routers) solo hablan con estas clases; nunca con los repositorios.
 
   - CalculadorRiesgo ... Context del patrón Strategy.
   - EvaluacionService .. Subject del patrón Observer y fachada del flujo de evaluación.
-  - AuthService ........ registro e inicio de sesión (HU-01, HU-02).
+  - HistorialService ... consulta del historial del usuario (HU-15, HU-16).
+  - AuthService ........ registro, inicio de sesión y usuario de la sesión (HU-01, HU-02).
 """
 from __future__ import annotations
 
@@ -14,7 +17,7 @@ from .factory import NivelRiesgoFactory
 from .models import DatosEvaluacion, ResultadoEvaluacion
 from .nutrition import calcular_nutricion
 from .observers import EvaluacionObserver
-from .repositories import UsuarioRepository
+from .repositories import EvaluacionRepository, UsuarioRepository
 from .security import TokenService, hashear_password, verificar_password
 from .strategies import FactorStrategy, estrategias_por_defecto
 
@@ -71,6 +74,31 @@ class EvaluacionService:
         return resultado
 
 
+# ------------------------------------------------------------- historial ---
+class EvaluacionNoEncontrada(Exception):
+    """La evaluación no existe o pertenece a otro usuario (misma respuesta para ambos casos)."""
+
+
+class HistorialService:
+    """Consulta del historial (HU-15, HU-16). Todo se filtra por usuario: nadie ve lo ajeno."""
+
+    def __init__(self, repositorio: EvaluacionRepository):
+        self._repo = repositorio
+
+    def listar(self, usuario_id: int) -> List[dict]:
+        return self._repo.listar(usuario_id)
+
+    def presiones(self, usuario_id: int) -> List[dict]:
+        return self._repo.listar_presiones(usuario_id)
+
+    def obtener(self, usuario_id: int, evaluacion_id: int) -> dict:
+        """Devuelve {'datos': {...}, 'resultado': {...}} o lanza EvaluacionNoEncontrada."""
+        fila = self._repo.obtener(usuario_id, evaluacion_id)
+        if fila is None:
+            raise EvaluacionNoEncontrada()
+        return fila
+
+
 # --------------------------------------------------------------- cuentas ---
 class CorreoYaRegistrado(Exception):
     pass
@@ -99,3 +127,8 @@ class AuthService:
         if not usuario or not verificar_password(password, usuario["password_hash"]):
             raise CredencialesInvalidas()
         return self._tokens.crear(usuario["id"]), usuario["nombre"]
+
+    def usuario_desde_token(self, token: str) -> Optional[dict]:
+        """Usuario dueño de un token válido, o None si el token es inválido, venció o el usuario no existe."""
+        datos = self._tokens.decodificar(token)
+        return self._usuarios.por_id(datos["uid"]) if datos else None

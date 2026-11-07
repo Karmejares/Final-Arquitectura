@@ -1,0 +1,498 @@
+diff --git a/GUIA.md b/GUIA.md
+index 34709fa..cdbcbe7 100644
+--- a/GUIA.md
++++ b/GUIA.md
+@@ -25,7 +25,7 @@ cardioprev/
+ │   ├── models.py             <- validación de datos de entrada y forma de las respuestas
+ │   ├── security.py           <- hash de contraseñas y tokens JWT
+ │   ├── repositories.py       <- ÚNICO lugar con SQL (usuarios y evaluaciones)
+-│   ├── services.py           <- lógica de negocio: CalculadorRiesgo, EvaluacionService, AuthService
++│   ├── services.py           <- lógica de negocio: CalculadorRiesgo, EvaluacionService, HistorialService, AuthService
+ │   ├── strategies.py         <- PATRÓN STRATEGY (un puntaje por factor de riesgo)
+ │   ├── factory.py            <- PATRÓN FACTORY METHOD (nivel bajo / medio / alto + semáforo)
+ │   ├── observers.py          <- PATRÓN OBSERVER (alerta de presión + guardado en historial)
+@@ -50,6 +50,7 @@ cardioprev/
+     ├── datos.py
+     ├── test_riesgo.py
+     ├── test_cuentas_pdf.py
++    ├── test_historial.py     <- historial, usuario de la sesión y separación MVC
+     └── test_api.py
+ ```
+ También van en la raíz: `seed_demo.py` (datos de ejemplo), `iniciar.bat` / `iniciar.sh` (arranque con un clic) y `SUSTENTACION.md` (guion).
+@@ -120,9 +121,21 @@ Principios aplicables para mencionar:
+ - **S (responsabilidad única):** cada archivo hace una sola cosa (SQL solo en `repositories.py`, reglas en `services.py`, HTTP en `routers/`).
+ - **O (abierto/cerrado):** nuevo factor = nueva estrategia; nuevo efecto tras evaluar = nuevo observador. Hay una prueba que lo demuestra (`test_nueva_estrategia_sin_modificar_el_calculador`).
+ - **D (inversión de dependencias):** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`.
+-- Arquitectura en capas: routers → services → repositories → database.
++- Arquitectura MVC (ver 5.b). Dentro del Modelo hay capas: services → repositories → database.
+ - Seguridad: contraseñas con PBKDF2 y sal, JWT con expiración, cierre de sesión por inactividad, cada usuario solo ve su historial, validación en servidor y en cliente, salida del HTML escapada (evita XSS).
+ 
++## 5.b Arquitectura MVC: qué es cada parte
++
++| MVC | Archivos | Qué hace |
++|---|---|---|
++| **Vista** | `static/index.html`, `static/js/app.js`, `static/js/api.js`, `static/css/`, y el PDF de `app/report.py` | Pinta las pantallas, recoge lo que escribe el usuario y llama a la API. No calcula nada del riesgo. |
++| **Controlador** | `app/routers/auth.py`, `app/routers/evaluaciones.py` (más `app/container.py`, que le entrega los servicios) | Recibe la petición HTTP, llama a **un servicio** y responde (JSON o PDF). Traduce errores del servicio a códigos HTTP (404, 409, 401). Sin SQL ni reglas de negocio. |
++| **Modelo** | `app/models.py` (datos y validación), `app/services.py` + `strategies.py` + `factory.py` + `observers.py` (reglas y patrones), `app/repositories.py` + `app/database.py` (persistencia) | Todo lo que es dato, regla y almacenamiento. |
++
++Flujo de una evaluación: la **Vista** envía los datos → el **Controlador** (`POST /api/evaluaciones`) los valida con Pydantic y llama a `EvaluacionService.evaluar()` → el **Modelo** calcula (Strategy), clasifica (Factory), notifica (Observer, que guarda con `EvaluacionRepository`) → el Controlador devuelve el resultado → la Vista lo muestra como semáforo.
++
++Regla de oro: **el controlador solo habla con servicios, nunca con repositorios.** Por eso existe `HistorialService` (listar, detalle y presiones) y `AuthService.usuario_desde_token`. La prueba `tests/test_historial.py::TestSeparacionMVC` revisa el código y falla si un router o el contenedor tocan un repositorio, o si aparece SQL fuera de `repositories.py` y `database.py`.
++
+ ## 6. Decisiones técnicas (útiles para la sección 4 del documento)
+ - **FastAPI:** validación automática con Pydantic (HU-18), documentación en `/docs`, buen rendimiento (RNF < 2 s).
+ - **SQLite:** cero configuración para la demo. Al estar todo el SQL en `repositories.py`, migrar a PostgreSQL solo cambia esa capa y `database.py`.
+diff --git a/README.md b/README.md
+index 8ff3041..f86128a 100644
+--- a/README.md
++++ b/README.md
+@@ -6,6 +6,7 @@ nutricional, historial por usuario y reporte en PDF.
+ 
+ - Backend: Python + FastAPI · SQLite · JWT · ReportLab
+ - Frontend: HTML + CSS + JavaScript (responsivo)
++- Arquitectura: **MVC** (el Modelo se organiza internamente en servicios y repositorios)
+ - Patrones de diseño: **Strategy**, **Factory Method** y **Observer**
+ 
+ Instrucciones completas de armado, ejecución, demo y sustentación: ver **GUIA.md**.
+@@ -17,4 +18,23 @@ uvicorn app.main:app --reload                          # http://127.0.0.1:8000
+ python -m pytest
+ ```
+ 
++## Arquitectura (MVC)
++
++| MVC | Dónde está | Responsabilidad |
++|---|---|---|
++| **Vista** | `static/` (HTML, CSS, JS) y el PDF de `app/report.py` | Mostrar datos y recoger lo que escribe el usuario. No tiene reglas de negocio. |
++| **Controlador** | `app/routers/` (`auth.py`, `evaluaciones.py`) | Recibe la petición HTTP, llama a un servicio y devuelve JSON o PDF. Sin SQL ni reglas. |
++| **Modelo** | `app/models.py`, `app/services.py` (con `strategies.py`, `factory.py`, `observers.py`), `app/repositories.py`, `app/database.py` | Datos, reglas de negocio, patrones de diseño y persistencia. |
++
++```mermaid
++flowchart LR
++    V["VISTA<br/>static/ (HTML · CSS · JS)<br/>PDF (report.py)"] -->|HTTP · JSON| C["CONTROLADOR<br/>routers/auth.py<br/>routers/evaluaciones.py"]
++    C --> S["MODELO · servicios<br/>AuthService · EvaluacionService<br/>HistorialService<br/>(Strategy · Factory · Observer)"]
++    S --> R["MODELO · repositorios<br/>repositories.py (único SQL)"]
++    R --> D[("SQLite")]
++```
++
++Regla de oro: el controlador **solo habla con servicios**, nunca con repositorios. La prueba
++`tests/test_historial.py::TestSeparacionMVC` lo verifica automáticamente.
++
+ > CardioPrev no reemplaza el diagnóstico ni la consulta con un profesional de la salud.
+diff --git a/SUSTENTACION.md b/SUSTENTACION.md
+index 02026c2..b51cc74 100644
+--- a/SUSTENTACION.md
++++ b/SUSTENTACION.md
+@@ -28,7 +28,7 @@ Duración sugerida: unos 10 minutos. Ensáyalo en voz alta al menos una vez.
+ | 1 | Pantalla de inicio de la app | Qué es CardioPrev, qué módulo elegiste (evaluación de riesgo) y por qué: es el núcleo del sistema y el que más justifica patrones. |
+ | 2 | **Demo.** Inicias sesión con el usuario de demostración, abres el historial (3 evaluaciones) y pulsas **Comenzar Evaluación** y recorres los 5 pasos con los valores de la tabla de abajo (también puedes entrar por cada tarjeta del Dashboard) | Edad e IMC se calculan solos; semáforo; alerta de presión; recomendaciones; calorías. Descargas el PDF. |
+ | 5 | **Código.** Abres `services.py` en `evaluar` | "Aquí están los tres patrones juntos" (ver sección 2). |
+-| 1 | `python -m pytest` y mostrar `test_nueva_estrategia_sin_modificar_el_calculador` | Principio abierto/cerrado demostrado con una prueba. |
++| 1 | `python -m pytest` y mostrar `test_nueva_estrategia_sin_modificar_el_calculador` y `TestSeparacionMVC` | Abierto/cerrado y separación MVC (el controlador no toca repositorios), demostrados con pruebas. |
+ | 1 | Cierre | Limitaciones honestas (sección 3, última pregunta) y qué mejorarías. |
+ 
+ **Valores para la evaluación en vivo** (perfil de riesgo medio; así se ve el amarillo y la alerta):
+@@ -52,6 +52,13 @@ Resultado esperado: **riesgo medio, 10 de 23 puntos, semáforo amarillo, alerta
+ 
+ Usa `Ctrl + P` para saltar a cada archivo y `Ctrl + F` para buscar la clase.
+ 
++### MVC (30 segundos, antes de entrar a los patrones)
++Abre el árbol de carpetas y señala:
++- "**Vista:** `static/` (HTML, CSS y JS) y el PDF de `report.py`. Solo muestra datos y recoge entradas."
++- "**Controlador:** `routers/`. Recibe HTTP, llama a un servicio y responde. No tiene reglas ni SQL."
++- "**Modelo:** `models.py`, `services.py` (con Strategy, Factory y Observer) y `repositories.py`. Aquí viven los datos, las reglas y la persistencia."
++- "El controlador **solo habla con servicios**, nunca con repositorios, y hay una prueba que lo verifica."
++
+ ### a) `services.py` → método `EvaluacionService.evaluar`  (empieza aquí)
+ "Este método es el flujo completo de una evaluación y tiene los tres patrones, marcados con comentarios."
+ 1. `# Strategy` → `self._calculador.calcular(datos)`: calcula el puntaje.
+@@ -82,7 +89,7 @@ Usa `Ctrl + P` para saltar a cada archivo y `Ctrl + F` para buscar la clase.
+ - **S:** cada archivo hace una sola cosa (SQL solo en `repositories.py`, HTTP solo en `routers/`).
+ - **O:** nuevo factor o efecto = clase nueva, sin modificar lo existente.
+ - **D:** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`, no de las concretas.
+-- **Capas:** rutas → servicios → repositorios → base de datos.
++- **MVC:** Vista (`static/`) → Controlador (`routers/`) → Modelo (servicios → repositorios → base de datos).
+ - **Seguridad:** contraseñas con PBKDF2 y sal, sesión JWT que expira por inactividad, cada usuario solo ve su historial.
+ 
+ ---
+@@ -113,6 +120,15 @@ SQLite es para la demostración (cero instalación). Para 100 usuarios concurren
+ **¿Qué tan válido es el cálculo del riesgo?**
+ Es una heurística académica con reglas simplificadas, **no un modelo clínico validado**. La aplicación lo advierte en cada resultado y no reemplaza a un médico.
+ 
++**¿Esto es realmente MVC si el front consume una API?**
++Sí, es la variante de MVC para aplicaciones web con el front separado. La Vista vive en el navegador (HTML/JS) y pinta lo que el Controlador le devuelve en JSON. El Controlador (los routers de FastAPI) solo traduce HTTP a llamadas a servicios. El Modelo concentra datos, reglas y persistencia. La diferencia con el MVC clásico de servidor es que las pantallas no las renderiza el servidor con plantillas; el único contenido que genera el servidor como vista es el PDF.
++
++**¿Por qué el Modelo tiene tantos archivos?**
++Para que no sea un solo bloque: los servicios tienen las reglas y los patrones, y los repositorios son el único lugar con SQL. Así se puede cambiar SQLite por PostgreSQL tocando solo los repositorios. Una prueba impide que el controlador salte esa separación.
++
++**¿Qué pasa con la clave secreta del JWT?**
++Hay un valor por defecto pensado para desarrollo. En un despliegue real se define la variable de entorno `CARDIOPREV_SECRET`. Es una limitación reconocida: hoy el sistema no obliga a definirla.
++
+ **¿Qué mejorarías?**
+ Medir el rendimiento con una prueba de carga, migrar a PostgreSQL, agregar `desuscribir` al sujeto del Observer, y validar las reglas de puntaje con un profesional de la salud.
+ 
+diff --git a/app/container.py b/app/container.py
+index ef3c775..dcafebd 100644
+--- a/app/container.py
++++ b/app/container.py
+@@ -1,21 +1,20 @@
+-"""Contenedor de dependencias: agrupa los objetos que comparten los routers."""
++"""Contenedor de dependencias: agrupa los SERVICIOS que usan los controladores (routers).
++
++Los routers no reciben repositorios: toda operación pasa por un servicio.
++"""
+ from dataclasses import dataclass
+ 
+ from fastapi import Depends, HTTPException, Request
+ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+ 
+-from .repositories import EvaluacionRepository, UsuarioRepository
+-from .security import TokenService
+-from .services import AuthService, EvaluacionService
++from .services import AuthService, EvaluacionService, HistorialService
+ 
+ 
+ @dataclass
+ class Contenedor:
+-    tokens: TokenService
+-    usuarios: UsuarioRepository
+-    evaluaciones_repo: EvaluacionRepository
+     auth: AuthService
+     evaluaciones: EvaluacionService
++    historial: HistorialService
+ 
+ 
+ def get_contenedor(request: Request) -> Contenedor:
+@@ -30,8 +29,7 @@ def usuario_actual(credenciales: HTTPAuthorizationCredentials = Depends(_bearer)
+     """Exige un token válido y devuelve el usuario autenticado (401 si no)."""
+     if credenciales is None:
+         raise HTTPException(status_code=401, detail="Debes iniciar sesión.")
+-    datos = c.tokens.decodificar(credenciales.credentials)
+-    usuario = c.usuarios.por_id(datos["uid"]) if datos else None
++    usuario = c.auth.usuario_desde_token(credenciales.credentials)
+     if usuario is None:
+         raise HTTPException(status_code=401, detail="Tu sesión expiró. Inicia sesión de nuevo.")
+     return usuario
+diff --git a/app/main.py b/app/main.py
+index 7be9a5b..3de8fa2 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -1,7 +1,13 @@
+ """Punto de entrada de CardioPrev.
+ 
+-Arquitectura en capas:  routers (HTTP)  ->  services (reglas de negocio + patrones)
+-                        ->  repositories (SQL)  ->  database (SQLite)
++Arquitectura MVC (el Modelo se organiza internamente en capas):
++
++  Vista ........... static/ (HTML, CSS, JS) y el PDF de report.py
++  Controlador ..... routers/  (HTTP: reciben la petición, llaman a un servicio, responden)
++  Modelo .......... models.py + services.py (con strategies, factory, observers)
++                    -> repositories.py (SQL) -> database.py (SQLite)
++
++El flujo siempre es:  Vista -> Controlador -> servicio -> repositorio -> base de datos.
+ """
+ from typing import Optional
+ 
+@@ -18,7 +24,7 @@ from .observers import AlertaPresionObserver, HistorialObserver
+ from .repositories import EvaluacionRepository, UsuarioRepository
+ from .routers import auth, evaluaciones
+ from .security import TokenService
+-from .services import AuthService, EvaluacionService
++from .services import AuthService, EvaluacionService, HistorialService
+ 
+ 
+ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
+@@ -34,10 +40,9 @@ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
+ 
+     app = FastAPI(title="CardioPrev", version="1.0",
+                   description="Estimación orientativa del riesgo cardiovascular")
+-    app.state.contenedor = Contenedor(tokens=tokens, usuarios=usuarios,
+-                                      evaluaciones_repo=evals_repo,
+-                                      auth=AuthService(usuarios, tokens),
+-                                      evaluaciones=servicio)
++    app.state.contenedor = Contenedor(auth=AuthService(usuarios, tokens),
++                                      evaluaciones=servicio,
++                                      historial=HistorialService(evals_repo))
+ 
+     @app.exception_handler(RequestValidationError)
+     async def errores_de_validacion(request: Request, exc: RequestValidationError):
+diff --git a/app/routers/auth.py b/app/routers/auth.py
+index bc8e925..63fd847 100644
+--- a/app/routers/auth.py
++++ b/app/routers/auth.py
+@@ -1,4 +1,7 @@
+-"""HU-01 registro y HU-02 inicio de sesión."""
++"""CONTROLADOR (MVC) · HU-01 registro y HU-02 inicio de sesión.
++
++Traduce HTTP a llamadas a AuthService y las excepciones del servicio a códigos de estado.
++"""
+ from fastapi import APIRouter, Depends, HTTPException
+ 
+ from ..container import Contenedor, get_contenedor, usuario_actual
+diff --git a/app/routers/evaluaciones.py b/app/routers/evaluaciones.py
+index 045a213..7d8bec4 100644
+--- a/app/routers/evaluaciones.py
++++ b/app/routers/evaluaciones.py
+@@ -1,4 +1,8 @@
+-"""HU-11 a HU-16: evaluar, guardar, consultar historial y descargar el PDF."""
++"""CONTROLADOR (MVC) · HU-11 a HU-16: evaluar, guardar, consultar historial y descargar el PDF.
++
++Recibe la petición HTTP, llama a un servicio del Modelo y devuelve la respuesta (JSON o PDF).
++No contiene reglas de negocio ni SQL.
++"""
+ from typing import List
+ 
+ from fastapi import APIRouter, Depends, HTTPException
+@@ -7,6 +11,7 @@ from fastapi.responses import Response
+ from ..container import Contenedor, get_contenedor, usuario_actual
+ from ..models import DatosEvaluacion, ResultadoEvaluacion
+ from ..report import generar_pdf
++from ..services import EvaluacionNoEncontrada
+ 
+ router = APIRouter(prefix="/api/evaluaciones", tags=["evaluaciones"])
+ 
+@@ -21,21 +26,21 @@ def crear_evaluacion(datos: DatosEvaluacion,
+ @router.get("")
+ def listar_historial(usuario: dict = Depends(usuario_actual),
+                      c: Contenedor = Depends(get_contenedor)) -> List[dict]:
+-    return c.evaluaciones_repo.listar(usuario["id"])
++    return c.historial.listar(usuario["id"])
+ 
+ 
+ # Debe declararse ANTES de "/{evaluacion_id}"; si no, "presiones" se interpretaría como un id.
+ @router.get("/presiones")
+ def historial_presiones(usuario: dict = Depends(usuario_actual),
+                         c: Contenedor = Depends(get_contenedor)) -> List[dict]:
+-    return c.evaluaciones_repo.listar_presiones(usuario["id"])
++    return c.historial.presiones(usuario["id"])
+ 
+ 
+ def _buscar(c: Contenedor, usuario: dict, evaluacion_id: int) -> dict:
+-    fila = c.evaluaciones_repo.obtener(usuario["id"], evaluacion_id)
+-    if fila is None:   # no existe o es de otro usuario: misma respuesta
++    try:
++        return c.historial.obtener(usuario["id"], evaluacion_id)
++    except EvaluacionNoEncontrada:   # no existe o es de otro usuario: misma respuesta
+         raise HTTPException(status_code=404, detail="Evaluación no encontrada.")
+-    return fila
+ 
+ 
+ @router.get("/{evaluacion_id}", response_model=ResultadoEvaluacion)
+diff --git a/app/services.py b/app/services.py
+index 889dd64..6704f9c 100644
+--- a/app/services.py
++++ b/app/services.py
+@@ -1,8 +1,11 @@
+-"""Capa de servicios: orquesta los patrones y las reglas de negocio.
++"""Capa de servicios (parte del MODELO en MVC): orquesta los patrones y las reglas de negocio.
++
++Los controladores (routers) solo hablan con estas clases; nunca con los repositorios.
+ 
+   - CalculadorRiesgo ... Context del patrón Strategy.
+   - EvaluacionService .. Subject del patrón Observer y fachada del flujo de evaluación.
+-  - AuthService ........ registro e inicio de sesión (HU-01, HU-02).
++  - HistorialService ... consulta del historial del usuario (HU-15, HU-16).
++  - AuthService ........ registro, inicio de sesión y usuario de la sesión (HU-01, HU-02).
+ """
+ from __future__ import annotations
+ 
+@@ -14,7 +17,7 @@ from .factory import NivelRiesgoFactory
+ from .models import DatosEvaluacion, ResultadoEvaluacion
+ from .nutrition import calcular_nutricion
+ from .observers import EvaluacionObserver
+-from .repositories import UsuarioRepository
++from .repositories import EvaluacionRepository, UsuarioRepository
+ from .security import TokenService, hashear_password, verificar_password
+ from .strategies import FactorStrategy, estrategias_por_defecto
+ 
+@@ -71,6 +74,31 @@ class EvaluacionService:
+         return resultado
+ 
+ 
++# ------------------------------------------------------------- historial ---
++class EvaluacionNoEncontrada(Exception):
++    """La evaluación no existe o pertenece a otro usuario (misma respuesta para ambos casos)."""
++
++
++class HistorialService:
++    """Consulta del historial (HU-15, HU-16). Todo se filtra por usuario: nadie ve lo ajeno."""
++
++    def __init__(self, repositorio: EvaluacionRepository):
++        self._repo = repositorio
++
++    def listar(self, usuario_id: int) -> List[dict]:
++        return self._repo.listar(usuario_id)
++
++    def presiones(self, usuario_id: int) -> List[dict]:
++        return self._repo.listar_presiones(usuario_id)
++
++    def obtener(self, usuario_id: int, evaluacion_id: int) -> dict:
++        """Devuelve {'datos': {...}, 'resultado': {...}} o lanza EvaluacionNoEncontrada."""
++        fila = self._repo.obtener(usuario_id, evaluacion_id)
++        if fila is None:
++            raise EvaluacionNoEncontrada()
++        return fila
++
++
+ # --------------------------------------------------------------- cuentas ---
+ class CorreoYaRegistrado(Exception):
+     pass
+@@ -99,3 +127,8 @@ class AuthService:
+         if not usuario or not verificar_password(password, usuario["password_hash"]):
+             raise CredencialesInvalidas()
+         return self._tokens.crear(usuario["id"]), usuario["nombre"]
++
++    def usuario_desde_token(self, token: str) -> Optional[dict]:
++        """Usuario dueño de un token válido, o None si el token es inválido, venció o el usuario no existe."""
++        datos = self._tokens.decodificar(token)
++        return self._usuarios.por_id(datos["uid"]) if datos else None
+diff --git a/tests/test_historial.py b/tests/test_historial.py
+new file mode 100644
+index 0000000..6481d3d
+--- /dev/null
++++ b/tests/test_historial.py
+@@ -0,0 +1,133 @@
++"""Pruebas del servicio de historial, del usuario de la sesión y de la separación MVC por capas."""
++import ast
++import os
++import tempfile
++import unittest
++from pathlib import Path
++
++from app.database import Database
++from app.models import DatosEvaluacion
++from app.observers import AlertaPresionObserver, HistorialObserver
++from app.repositories import EvaluacionRepository, UsuarioRepository
++from app.security import TokenService
++from app.services import (AuthService, EvaluacionNoEncontrada, EvaluacionService,
++                          HistorialService)
++
++from .datos import RIESGOSO, SANO
++
++RAIZ_APP = Path(__file__).resolve().parent.parent / "app"
++
++
++class TestHistorialService(unittest.TestCase):
++    def setUp(self):
++        db = Database(os.path.join(tempfile.mkdtemp(), "h.db"))
++        usuarios = UsuarioRepository(db)
++        repo = EvaluacionRepository(db)
++        self.ana = usuarios.crear("Ana", "ana@correo.com", "hash")
++        self.luis = usuarios.crear("Luis", "luis@correo.com", "hash")
++        evaluador = EvaluacionService()
++        evaluador.suscribir(AlertaPresionObserver())
++        evaluador.suscribir(HistorialObserver(repo))
++        self.evaluador = evaluador
++        self.historial = HistorialService(repo)
++
++    def evaluar(self, usuario_id, perfil):
++        return self.evaluador.evaluar(usuario_id, DatosEvaluacion(**perfil))
++
++    def test_listar_solo_lo_del_usuario_y_lo_mas_reciente_primero(self):
++        primera = self.evaluar(self.ana, SANO)
++        segunda = self.evaluar(self.ana, RIESGOSO)
++        self.evaluar(self.luis, SANO)
++        ids = [f["id"] for f in self.historial.listar(self.ana)]
++        self.assertEqual(ids, [segunda.id, primera.id])
++        self.assertEqual(len(self.historial.listar(self.luis)), 1)
++
++    def test_listar_vacio_para_usuario_sin_evaluaciones(self):
++        self.assertEqual(self.historial.listar(self.luis), [])
++
++    def test_obtener_devuelve_datos_y_resultado_con_id(self):
++        r = self.evaluar(self.ana, RIESGOSO)
++        fila = self.historial.obtener(self.ana, r.id)
++        self.assertEqual(fila["resultado"]["id"], r.id)
++        self.assertEqual(fila["resultado"]["color"], "rojo")
++        self.assertEqual(fila["datos"]["presion_sistolica"], 160)
++
++    def test_obtener_de_otro_usuario_o_inexistente_lanza_la_misma_excepcion(self):
++        r = self.evaluar(self.ana, SANO)
++        with self.assertRaises(EvaluacionNoEncontrada):
++            self.historial.obtener(self.luis, r.id)        # existe, pero es de Ana
++        with self.assertRaises(EvaluacionNoEncontrada):
++            self.historial.obtener(self.ana, 9999)         # no existe
++
++    def test_presiones_clasifica_cada_evaluacion(self):
++        self.evaluar(self.ana, SANO)
++        self.evaluar(self.ana, RIESGOSO)
++        estados = [p["estado"] for p in self.historial.presiones(self.ana)]
++        self.assertEqual(estados, ["alta", "normal"])      # del más reciente al más antiguo
++        self.assertEqual(self.historial.presiones(self.luis), [])
++
++
++class TestUsuarioDesdeToken(unittest.TestCase):
++    def setUp(self):
++        db = Database(os.path.join(tempfile.mkdtemp(), "t.db"))
++        self.tokens = TokenService("secreto-de-prueba", 15)
++        self.auth = AuthService(UsuarioRepository(db), self.tokens)
++        self.uid = self.auth.registrar("Sara", "sara@correo.com", "clave12345")
++
++    def test_token_valido_devuelve_al_usuario(self):
++        token, _ = self.auth.iniciar_sesion("sara@correo.com", "clave12345")
++        usuario = self.auth.usuario_desde_token(token)
++        self.assertEqual(usuario["id"], self.uid)
++        self.assertEqual(usuario["nombre"], "Sara")
++
++    def test_token_invalido_vencido_o_de_usuario_inexistente_devuelve_none(self):
++        self.assertIsNone(self.auth.usuario_desde_token("no.es.un.token"))
++        vencido = TokenService("secreto-de-prueba", -1).crear(self.uid)
++        self.assertIsNone(self.auth.usuario_desde_token(vencido))
++        self.assertIsNone(self.auth.usuario_desde_token(self.tokens.crear(9999)))
++
++
++class TestSeparacionMVC(unittest.TestCase):
++    """Los controladores (routers) y el contenedor no pueden depender de los repositorios:
++    todo pasa por un servicio. Se revisa el código fuente, así que no necesita FastAPI."""
++
++    @staticmethod
++    def _importa_repositorios(ruta: Path) -> bool:
++        return TestSeparacionMVC._toca_repositorios(ruta.read_text(encoding="utf-8"))
++
++    @staticmethod
++    def _toca_repositorios(codigo: str) -> bool:
++        """True si el código importa un repositorio o accede a uno (p. ej. `c.evaluaciones_repo`)."""
++        arbol = ast.parse(codigo)
++        for nodo in ast.walk(arbol):
++            if isinstance(nodo, ast.Attribute) and "repo" in nodo.attr.lower():
++                return True
++            if isinstance(nodo, ast.ImportFrom) and nodo.module:
++                if nodo.module.split(".")[-1] == "repositories":
++                    return True
++                if any(a.name in ("EvaluacionRepository", "UsuarioRepository") for a in nodo.names):
++                    return True
++            if isinstance(nodo, ast.Import) and any("repositories" in a.name for a in nodo.names):
++                return True
++        return False
++
++    def test_routers_y_contenedor_no_importan_repositorios(self):
++        archivos = sorted((RAIZ_APP / "routers").glob("*.py")) + [RAIZ_APP / "container.py"]
++        self.assertGreaterEqual(len(archivos), 3)
++        for ruta in archivos:
++            with self.subTest(archivo=ruta.name):
++                self.assertFalse(self._importa_repositorios(ruta),
++                                 f"{ruta.name} no debe importar repositorios")
++
++    def test_solo_los_repositorios_contienen_sql(self):
++        for ruta in sorted(RAIZ_APP.rglob("*.py")):
++            if ruta.name in ("repositories.py", "database.py"):
++                continue
++            texto = ruta.read_text(encoding="utf-8").upper()
++            with self.subTest(archivo=str(ruta.relative_to(RAIZ_APP))):
++                self.assertNotIn("SELECT ", texto)
++                self.assertNotIn("INSERT INTO", texto)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/verificar.py b/verificar.py
+index 1e613d8..1f9afe5 100644
+--- a/verificar.py
++++ b/verificar.py
+@@ -44,6 +44,7 @@ ARCHIVOS = [
+     "tests/test_riesgo.py",
+     "tests/test_cuentas_pdf.py",
+     "tests/test_habitos_presion.py",
++    "tests/test_historial.py",
+     "tests/test_api.py",
+ ]
+ 
