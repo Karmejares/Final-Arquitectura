@@ -21,23 +21,27 @@ cardioprev/
 │   ├── __init__.py           <- vacío, pero DEBE existir
 │   ├── main.py               <- crea la app, conecta todo y arranca
 │   ├── config.py             <- clave secreta, minutos de sesión, ruta de la base de datos
-│   ├── database.py           <- conexión SQLite y creación de tablas
-│   ├── models.py             <- validación de datos de entrada y forma de las respuestas
-│   ├── security.py           <- hash de contraseñas y tokens JWT
-│   ├── repositories.py       <- ÚNICO lugar con SQL (usuarios y evaluaciones)
-│   ├── services.py           <- lógica de negocio: CalculadorRiesgo, EvaluacionService, HistorialService, AuthService
-│   ├── strategies.py         <- PATRÓN STRATEGY (un puntaje por factor de riesgo)
-│   ├── factory.py            <- PATRÓN FACTORY METHOD (nivel bajo / medio / alto + semáforo)
-│   ├── observers.py          <- PATRÓN OBSERVER (alerta de presión + guardado en historial)
-│   ├── nutrition.py          <- calorías y macronutrientes (HU-07)
-│   ├── report.py             <- genera el PDF (HU-16)
 │   ├── errors.py             <- mensajes de validación en español (HU-18)
-│   ├── presion.py            <- clasificación de la presión (normal / elevada / alta / baja)
 │   ├── container.py          <- agrupa dependencias y exige sesión iniciada
-│   └── routers/
+│   ├── models/               <- MODELO (MVC): datos, reglas, patrones y persistencia
+│   │   ├── __init__.py       <- vacío, pero DEBE existir
+│   │   ├── database.py       <- conexión SQLite y creación de tablas
+│   │   ├── models.py         <- validación de datos de entrada y forma de las respuestas
+│   │   ├── security.py       <- hash de contraseñas y tokens JWT
+│   │   ├── repositories.py   <- ÚNICO lugar con SQL (usuarios y evaluaciones)
+│   │   ├── services.py       <- lógica de negocio: CalculadorRiesgo, EvaluacionService, HistorialService, AuthService
+│   │   ├── strategies.py     <- PATRÓN STRATEGY (un puntaje por factor de riesgo)
+│   │   ├── factory.py        <- PATRÓN FACTORY METHOD (nivel bajo / medio / alto + semáforo)
+│   │   ├── observers.py      <- PATRÓN OBSERVER (alerta de presión + guardado en historial)
+│   │   ├── nutrition.py      <- calorías y macronutrientes (HU-07)
+│   │   └── presion.py        <- clasificación de la presión (normal / elevada / alta / baja)
+│   ├── views/                <- VISTA (MVC): lo que el servidor genera para mostrar
+│   │   ├── __init__.py       <- vacío, pero DEBE existir
+│   │   └── report.py         <- genera el PDF (HU-16)
+│   └── controllers/          <- CONTROLADOR (MVC)
 │       ├── __init__.py       <- vacío, pero DEBE existir
-│       ├── auth.py           <- /api/auth/registro, /login, /me
-│       └── evaluaciones.py   <- /api/evaluaciones (crear, listar, detalle, pdf)
+│       ├── auth_controller.py          <- /api/auth/registro, /login, /me
+│       └── evaluaciones_controller.py  <- /api/evaluaciones (crear, listar, detalle, pdf)
 ├── static/                   <- FRONTEND (lo que ve el usuario)
 │   ├── index.html            <- página única
 │   ├── css/estilos.css
@@ -58,13 +62,13 @@ También van en la raíz: `seed_demo.py` (datos de ejemplo), `iniciar.bat` / `in
 Recomendación para ir armándolo por capas (así entiendes cada una antes de la siguiente):
 1. `config.py`, `database.py`, `models.py`
 2. `strategies.py`, `factory.py`, `nutrition.py`, `observers.py`, `services.py` (el corazón del módulo)
-3. `security.py`, `repositories.py`, `container.py`, `routers/`, `errors.py`, `report.py`, `main.py`
+3. `security.py`, `repositories.py`, `container.py`, `controllers/`, `errors.py`, `views/report.py`, `main.py`
 4. `static/` (frontend)
 5. `tests/`
 
 ## 2.b Si prefieres crear los archivos tú mismo, uno por uno
-1. Crea la carpeta `cardioprev` y, dentro, las subcarpetas `app`, `app/routers`, `static`, `static/css`, `static/js` y `tests`.
-2. Copia cada archivo a la ruta exacta del árbol de arriba. Los archivos `__init__.py` pueden estar **vacíos, pero deben existir** (en `app/`, `app/routers/` y `tests/`): es el error más común.
+1. Crea la carpeta `cardioprev` y, dentro, las subcarpetas `app`, `app/models`, `app/views`, `app/controllers`, `static`, `static/css`, `static/js` y `tests`.
+2. Copia cada archivo a la ruta exacta del árbol de arriba. Los archivos `__init__.py` pueden estar **vacíos, pero deben existir** (en `app/`, `app/models/`, `app/views/`, `app/controllers/` y `tests/`): es el error más común.
 3. Ejecuta `python verificar.py` desde la carpeta `cardioprev`: te dice qué archivo falta o está vacío, qué librería no está instalada y si la aplicación se puede importar.
 
 ## 3. Instalación y ejecución
@@ -111,14 +115,14 @@ Si PowerShell bloquea el script de activación: `Set-ExecutionPolicy -Scope Curr
 
 | Patrón | Archivo | Qué decir |
 |---|---|---|
-| **Strategy** | `app/strategies.py` | `FactorStrategy` es la interfaz; `EdadStrategy`, `ImcStrategy`, `PresionStrategy`... son las estrategias concretas. El contexto es `CalculadorRiesgo` en `services.py`, que solo recorre la lista y suma. Para agregar un factor se crea una clase nueva y no se toca el calculador. |
-| **Factory Method** | `app/factory.py` | `NivelRiesgoFactory.crear(puntaje)` decide qué objeto crear: `RiesgoBajo`, `RiesgoMedio` o `RiesgoAlto`. Cada uno encapsula su color de semáforo, mensaje y recomendaciones generales; el resto del código no usa `if` sobre el nivel. |
-| **Observer** | `app/observers.py` | `EvaluacionService` (en `services.py`) es el Subject: tiene `suscribir()` y `_notificar()`. Los observadores concretos son `AlertaPresionObserver` y `HistorialObserver`; se suscriben en `main.py`. |
+| **Strategy** | `app/models/strategies.py` | `FactorStrategy` es la interfaz; `EdadStrategy`, `ImcStrategy`, `PresionStrategy`... son las estrategias concretas. El contexto es `CalculadorRiesgo` en `services.py`, que solo recorre la lista y suma. Para agregar un factor se crea una clase nueva y no se toca el calculador. |
+| **Factory Method** | `app/models/factory.py` | `NivelRiesgoFactory.crear(puntaje)` decide qué objeto crear: `RiesgoBajo`, `RiesgoMedio` o `RiesgoAlto`. Cada uno encapsula su color de semáforo, mensaje y recomendaciones generales; el resto del código no usa `if` sobre el nivel. |
+| **Observer** | `app/models/observers.py` | `EvaluacionService` (en `services.py`) es el Subject: tiene `suscribir()` y `_notificar()`. Los observadores concretos son `AlertaPresionObserver` y `HistorialObserver`; se suscriben en `main.py`. |
 
-El flujo está en `EvaluacionService.evaluar()` (`app/services.py`): tiene tres líneas comentadas con **# Strategy**, **# Factory Method** y **# Observer**. Empieza la demo del código por ahí.
+El flujo está en `EvaluacionService.evaluar()` (`app/models/services.py`): tiene tres líneas comentadas con **# Strategy**, **# Factory Method** y **# Observer**. Empieza la demo del código por ahí.
 
 Principios aplicables para mencionar:
-- **S (responsabilidad única):** cada archivo hace una sola cosa (SQL solo en `repositories.py`, reglas en `services.py`, HTTP en `routers/`).
+- **S (responsabilidad única):** cada archivo hace una sola cosa (SQL solo en `repositories.py`, reglas en `services.py`, HTTP en `controllers/`).
 - **O (abierto/cerrado):** nuevo factor = nueva estrategia; nuevo efecto tras evaluar = nuevo observador. Hay una prueba que lo demuestra (`test_nueva_estrategia_sin_modificar_el_calculador`).
 - **D (inversión de dependencias):** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`.
 - Arquitectura MVC (ver 5.b). Dentro del Modelo hay capas: services → repositories → database.
@@ -128,13 +132,13 @@ Principios aplicables para mencionar:
 
 | MVC | Archivos | Qué hace |
 |---|---|---|
-| **Vista** | `static/index.html`, `static/js/app.js`, `static/js/api.js`, `static/css/`, y el PDF de `app/report.py` | Pinta las pantallas, recoge lo que escribe el usuario y llama a la API. No calcula nada del riesgo. |
-| **Controlador** | `app/routers/auth.py`, `app/routers/evaluaciones.py` (más `app/container.py`, que le entrega los servicios) | Recibe la petición HTTP, llama a **un servicio** y responde (JSON o PDF). Traduce errores del servicio a códigos HTTP (404, 409, 401). Sin SQL ni reglas de negocio. |
-| **Modelo** | `app/models.py` (datos y validación), `app/services.py` + `strategies.py` + `factory.py` + `observers.py` (reglas y patrones), `app/repositories.py` + `app/database.py` (persistencia) | Todo lo que es dato, regla y almacenamiento. |
+| **Vista** | `static/index.html`, `static/js/app.js`, `static/js/api.js`, `static/css/`, y `app/views/report.py` (el PDF) | Pinta las pantallas, recoge lo que escribe el usuario y llama a la API. No calcula nada del riesgo. |
+| **Controlador** | `app/controllers/auth_controller.py`, `app/controllers/evaluaciones_controller.py` (más `app/container.py`, que le entrega los servicios) | Recibe la petición HTTP, llama a **un servicio** y responde (JSON o PDF). Traduce errores del servicio a códigos HTTP (404, 409, 401). Sin SQL ni reglas de negocio. |
+| **Modelo** | la carpeta `app/models/`: `models.py` (datos y validación), `services.py` + `strategies.py` + `factory.py` + `observers.py` (reglas y patrones), `repositories.py` + `database.py` (persistencia) | Todo lo que es dato, regla y almacenamiento. |
 
 Flujo de una evaluación: la **Vista** envía los datos → el **Controlador** (`POST /api/evaluaciones`) los valida con Pydantic y llama a `EvaluacionService.evaluar()` → el **Modelo** calcula (Strategy), clasifica (Factory), notifica (Observer, que guarda con `EvaluacionRepository`) → el Controlador devuelve el resultado → la Vista lo muestra como semáforo.
 
-Regla de oro: **el controlador solo habla con servicios, nunca con repositorios.** Por eso existe `HistorialService` (listar, detalle y presiones) y `AuthService.usuario_desde_token`. La prueba `tests/test_historial.py::TestSeparacionMVC` revisa el código y falla si un router o el contenedor tocan un repositorio, o si aparece SQL fuera de `repositories.py` y `database.py`.
+Regla de oro: **el controlador solo habla con servicios, nunca con repositorios.** Por eso existe `HistorialService` (listar, detalle y presiones) y `AuthService.usuario_desde_token`. La prueba `tests/test_historial.py::TestSeparacionMVC` revisa el código y falla si un controlador o el contenedor tocan un repositorio, o si aparece SQL fuera de `repositories.py` y `database.py`.
 
 ## 6. Decisiones técnicas (útiles para la sección 4 del documento)
 - **FastAPI:** validación automática con Pydantic (HU-18), documentación en `/docs`, buen rendimiento (RNF < 2 s).

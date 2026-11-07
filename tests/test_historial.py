@@ -5,12 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.database import Database
-from app.models import DatosEvaluacion
-from app.observers import AlertaPresionObserver, HistorialObserver
-from app.repositories import EvaluacionRepository, UsuarioRepository
-from app.security import TokenService
-from app.services import (AuthService, EvaluacionNoEncontrada, EvaluacionService,
+from app.models.database import Database
+from app.models.models import DatosEvaluacion
+from app.models.observers import AlertaPresionObserver, HistorialObserver
+from app.models.repositories import EvaluacionRepository, UsuarioRepository
+from app.models.security import TokenService
+from app.models.services import (AuthService, EvaluacionNoEncontrada, EvaluacionService,
                           HistorialService)
 
 from .datos import RIESGOSO, SANO
@@ -88,7 +88,7 @@ class TestUsuarioDesdeToken(unittest.TestCase):
 
 
 class TestSeparacionMVC(unittest.TestCase):
-    """Los controladores (routers) y el contenedor no pueden depender de los repositorios:
+    """Los controladores (app/controllers/) y el contenedor no pueden depender de los repositorios:
     todo pasa por un servicio. Se revisa el código fuente, así que no necesita FastAPI."""
 
     @staticmethod
@@ -111,8 +111,8 @@ class TestSeparacionMVC(unittest.TestCase):
                 return True
         return False
 
-    def test_routers_y_contenedor_no_importan_repositorios(self):
-        archivos = sorted((RAIZ_APP / "routers").glob("*.py")) + [RAIZ_APP / "container.py"]
+    def test_controladores_y_contenedor_no_importan_repositorios(self):
+        archivos = sorted((RAIZ_APP / "controllers").glob("*.py")) + [RAIZ_APP / "container.py"]
         self.assertGreaterEqual(len(archivos), 3)
         for ruta in archivos:
             with self.subTest(archivo=ruta.name):

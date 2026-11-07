@@ -7,12 +7,12 @@ Es seguro ejecutarlo varias veces: no duplica el usuario ni las evaluaciones.
 Se ejecuta desde la carpeta del proyecto:  python seed_demo.py
 """
 from app import config
-from app.database import Database
-from app.models import DatosEvaluacion
-from app.observers import AlertaPresionObserver, HistorialObserver
-from app.repositories import EvaluacionRepository, UsuarioRepository
-from app.security import hashear_password
-from app.services import EvaluacionService
+from app.models.database import Database
+from app.models.models import DatosEvaluacion
+from app.models.observers import AlertaPresionObserver, HistorialObserver
+from app.models.repositories import EvaluacionRepository, UsuarioRepository
+from app.models.security import hashear_password
+from app.models.services import EvaluacionService
 
 CORREO = "demo@cardioprev.com"
 PASSWORD = "Demo12345"

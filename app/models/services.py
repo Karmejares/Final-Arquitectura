@@ -1,6 +1,6 @@
 """Capa de servicios (parte del MODELO en MVC): orquesta los patrones y las reglas de negocio.
 
-Los controladores (routers) solo hablan con estas clases; nunca con los repositorios.
+Los controladores (carpeta controllers/) solo hablan con estas clases; nunca con los repositorios.
 
   - CalculadorRiesgo ... Context del patrón Strategy.
   - EvaluacionService .. Subject del patrón Observer y fachada del flujo de evaluación.

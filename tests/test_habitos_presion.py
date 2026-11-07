@@ -5,14 +5,14 @@ import unittest
 
 from pydantic import ValidationError
 
-from app.database import Database
+from app.models.database import Database
 from app.errors import traducir_errores
-from app.models import DatosEvaluacion, clasificar_alimentacion
-from app.presion import clasificar_presion
-from app.repositories import EvaluacionRepository, UsuarioRepository
-from app.observers import HistorialObserver
-from app.report import generar_pdf
-from app.services import EvaluacionService
+from app.models.models import DatosEvaluacion, clasificar_alimentacion
+from app.models.presion import clasificar_presion
+from app.models.repositories import EvaluacionRepository, UsuarioRepository
+from app.models.observers import HistorialObserver
+from app.views.report import generar_pdf
+from app.models.services import EvaluacionService
 
 from .datos import SANO
 

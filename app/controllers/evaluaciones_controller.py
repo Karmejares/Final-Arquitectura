@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 from ..container import Contenedor, get_contenedor, usuario_actual
-from ..models import DatosEvaluacion, ResultadoEvaluacion
-from ..report import generar_pdf
-from ..services import EvaluacionNoEncontrada
+from ..models.models import DatosEvaluacion, ResultadoEvaluacion
+from ..views.report import generar_pdf
+from ..models.services import EvaluacionNoEncontrada
 
 router = APIRouter(prefix="/api/evaluaciones", tags=["evaluaciones"])
 

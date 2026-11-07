@@ -5,8 +5,8 @@ Traduce HTTP a llamadas a AuthService y las excepciones del servicio a códigos 
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..container import Contenedor, get_contenedor, usuario_actual
-from ..models import LoginIn, RegistroIn, TokenOut
-from ..services import CorreoYaRegistrado, CredencialesInvalidas
+from ..models.models import LoginIn, RegistroIn, TokenOut
+from ..models.services import CorreoYaRegistrado, CredencialesInvalidas
 
 router = APIRouter(prefix="/api/auth", tags=["autenticación"])
 

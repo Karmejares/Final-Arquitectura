@@ -3,15 +3,15 @@ import os
 import tempfile
 import unittest
 
-from app.database import Database
+from app.models.database import Database
 from app.errors import traducir_errores
-from app.factory import NivelRiesgoFactory, RiesgoAlto, RiesgoBajo, RiesgoMedio
-from app.models import DatosEvaluacion
-from app.nutrition import calcular_nutricion
-from app.observers import AlertaPresionObserver, HistorialObserver
-from app.repositories import EvaluacionRepository, UsuarioRepository
-from app.services import CalculadorRiesgo, EvaluacionService
-from app.strategies import FactorStrategy, TabacoStrategy
+from app.models.factory import NivelRiesgoFactory, RiesgoAlto, RiesgoBajo, RiesgoMedio
+from app.models.models import DatosEvaluacion
+from app.models.nutrition import calcular_nutricion
+from app.models.observers import AlertaPresionObserver, HistorialObserver
+from app.models.repositories import EvaluacionRepository, UsuarioRepository
+from app.models.services import CalculadorRiesgo, EvaluacionService
+from app.models.strategies import FactorStrategy, TabacoStrategy
 from pydantic import ValidationError
 
 from .datos import RIESGOSO, SANO

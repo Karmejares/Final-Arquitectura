@@ -4,12 +4,12 @@ import tempfile
 import time
 import unittest
 
-from app.database import Database
-from app.models import DatosEvaluacion, RegistroIn
-from app.report import generar_pdf
-from app.repositories import UsuarioRepository
-from app.security import TokenService, hashear_password, verificar_password
-from app.services import (AuthService, CorreoYaRegistrado, CredencialesInvalidas,
+from app.models.database import Database
+from app.models.models import DatosEvaluacion, RegistroIn
+from app.views.report import generar_pdf
+from app.models.repositories import UsuarioRepository
+from app.models.security import TokenService, hashear_password, verificar_password
+from app.models.services import (AuthService, CorreoYaRegistrado, CredencialesInvalidas,
                           EvaluacionService)
 from pydantic import ValidationError
 

@@ -1,0 +1,523 @@
+diff --git a/GUIA.md b/GUIA.md
+index cdbcbe7..6228fc6 100644
+--- a/GUIA.md
++++ b/GUIA.md
+@@ -21,23 +21,27 @@ cardioprev/
+ │   ├── __init__.py           <- vacío, pero DEBE existir
+ │   ├── main.py               <- crea la app, conecta todo y arranca
+ │   ├── config.py             <- clave secreta, minutos de sesión, ruta de la base de datos
+-│   ├── database.py           <- conexión SQLite y creación de tablas
+-│   ├── models.py             <- validación de datos de entrada y forma de las respuestas
+-│   ├── security.py           <- hash de contraseñas y tokens JWT
+-│   ├── repositories.py       <- ÚNICO lugar con SQL (usuarios y evaluaciones)
+-│   ├── services.py           <- lógica de negocio: CalculadorRiesgo, EvaluacionService, HistorialService, AuthService
+-│   ├── strategies.py         <- PATRÓN STRATEGY (un puntaje por factor de riesgo)
+-│   ├── factory.py            <- PATRÓN FACTORY METHOD (nivel bajo / medio / alto + semáforo)
+-│   ├── observers.py          <- PATRÓN OBSERVER (alerta de presión + guardado en historial)
+-│   ├── nutrition.py          <- calorías y macronutrientes (HU-07)
+-│   ├── report.py             <- genera el PDF (HU-16)
+ │   ├── errors.py             <- mensajes de validación en español (HU-18)
+-│   ├── presion.py            <- clasificación de la presión (normal / elevada / alta / baja)
+ │   ├── container.py          <- agrupa dependencias y exige sesión iniciada
+-│   └── routers/
++│   ├── models/               <- MODELO (MVC): datos, reglas, patrones y persistencia
++│   │   ├── __init__.py       <- vacío, pero DEBE existir
++│   │   ├── database.py       <- conexión SQLite y creación de tablas
++│   │   ├── models.py         <- validación de datos de entrada y forma de las respuestas
++│   │   ├── security.py       <- hash de contraseñas y tokens JWT
++│   │   ├── repositories.py   <- ÚNICO lugar con SQL (usuarios y evaluaciones)
++│   │   ├── services.py       <- lógica de negocio: CalculadorRiesgo, EvaluacionService, HistorialService, AuthService
++│   │   ├── strategies.py     <- PATRÓN STRATEGY (un puntaje por factor de riesgo)
++│   │   ├── factory.py        <- PATRÓN FACTORY METHOD (nivel bajo / medio / alto + semáforo)
++│   │   ├── observers.py      <- PATRÓN OBSERVER (alerta de presión + guardado en historial)
++│   │   ├── nutrition.py      <- calorías y macronutrientes (HU-07)
++│   │   └── presion.py        <- clasificación de la presión (normal / elevada / alta / baja)
++│   ├── views/                <- VISTA (MVC): lo que el servidor genera para mostrar
++│   │   ├── __init__.py       <- vacío, pero DEBE existir
++│   │   └── report.py         <- genera el PDF (HU-16)
++│   └── controllers/          <- CONTROLADOR (MVC)
+ │       ├── __init__.py       <- vacío, pero DEBE existir
+-│       ├── auth.py           <- /api/auth/registro, /login, /me
+-│       └── evaluaciones.py   <- /api/evaluaciones (crear, listar, detalle, pdf)
++│       ├── auth_controller.py          <- /api/auth/registro, /login, /me
++│       └── evaluaciones_controller.py  <- /api/evaluaciones (crear, listar, detalle, pdf)
+ ├── static/                   <- FRONTEND (lo que ve el usuario)
+ │   ├── index.html            <- página única
+ │   ├── css/estilos.css
+@@ -58,13 +62,13 @@ También van en la raíz: `seed_demo.py` (datos de ejemplo), `iniciar.bat` / `in
+ Recomendación para ir armándolo por capas (así entiendes cada una antes de la siguiente):
+ 1. `config.py`, `database.py`, `models.py`
+ 2. `strategies.py`, `factory.py`, `nutrition.py`, `observers.py`, `services.py` (el corazón del módulo)
+-3. `security.py`, `repositories.py`, `container.py`, `routers/`, `errors.py`, `report.py`, `main.py`
++3. `security.py`, `repositories.py`, `container.py`, `controllers/`, `errors.py`, `views/report.py`, `main.py`
+ 4. `static/` (frontend)
+ 5. `tests/`
+ 
+ ## 2.b Si prefieres crear los archivos tú mismo, uno por uno
+-1. Crea la carpeta `cardioprev` y, dentro, las subcarpetas `app`, `app/routers`, `static`, `static/css`, `static/js` y `tests`.
+-2. Copia cada archivo a la ruta exacta del árbol de arriba. Los archivos `__init__.py` pueden estar **vacíos, pero deben existir** (en `app/`, `app/routers/` y `tests/`): es el error más común.
++1. Crea la carpeta `cardioprev` y, dentro, las subcarpetas `app`, `app/models`, `app/views`, `app/controllers`, `static`, `static/css`, `static/js` y `tests`.
++2. Copia cada archivo a la ruta exacta del árbol de arriba. Los archivos `__init__.py` pueden estar **vacíos, pero deben existir** (en `app/`, `app/models/`, `app/views/`, `app/controllers/` y `tests/`): es el error más común.
+ 3. Ejecuta `python verificar.py` desde la carpeta `cardioprev`: te dice qué archivo falta o está vacío, qué librería no está instalada y si la aplicación se puede importar.
+ 
+ ## 3. Instalación y ejecución
+@@ -111,14 +115,14 @@ Si PowerShell bloquea el script de activación: `Set-ExecutionPolicy -Scope Curr
+ 
+ | Patrón | Archivo | Qué decir |
+ |---|---|---|
+-| **Strategy** | `app/strategies.py` | `FactorStrategy` es la interfaz; `EdadStrategy`, `ImcStrategy`, `PresionStrategy`... son las estrategias concretas. El contexto es `CalculadorRiesgo` en `services.py`, que solo recorre la lista y suma. Para agregar un factor se crea una clase nueva y no se toca el calculador. |
+-| **Factory Method** | `app/factory.py` | `NivelRiesgoFactory.crear(puntaje)` decide qué objeto crear: `RiesgoBajo`, `RiesgoMedio` o `RiesgoAlto`. Cada uno encapsula su color de semáforo, mensaje y recomendaciones generales; el resto del código no usa `if` sobre el nivel. |
+-| **Observer** | `app/observers.py` | `EvaluacionService` (en `services.py`) es el Subject: tiene `suscribir()` y `_notificar()`. Los observadores concretos son `AlertaPresionObserver` y `HistorialObserver`; se suscriben en `main.py`. |
++| **Strategy** | `app/models/strategies.py` | `FactorStrategy` es la interfaz; `EdadStrategy`, `ImcStrategy`, `PresionStrategy`... son las estrategias concretas. El contexto es `CalculadorRiesgo` en `services.py`, que solo recorre la lista y suma. Para agregar un factor se crea una clase nueva y no se toca el calculador. |
++| **Factory Method** | `app/models/factory.py` | `NivelRiesgoFactory.crear(puntaje)` decide qué objeto crear: `RiesgoBajo`, `RiesgoMedio` o `RiesgoAlto`. Cada uno encapsula su color de semáforo, mensaje y recomendaciones generales; el resto del código no usa `if` sobre el nivel. |
++| **Observer** | `app/models/observers.py` | `EvaluacionService` (en `services.py`) es el Subject: tiene `suscribir()` y `_notificar()`. Los observadores concretos son `AlertaPresionObserver` y `HistorialObserver`; se suscriben en `main.py`. |
+ 
+-El flujo está en `EvaluacionService.evaluar()` (`app/services.py`): tiene tres líneas comentadas con **# Strategy**, **# Factory Method** y **# Observer**. Empieza la demo del código por ahí.
++El flujo está en `EvaluacionService.evaluar()` (`app/models/services.py`): tiene tres líneas comentadas con **# Strategy**, **# Factory Method** y **# Observer**. Empieza la demo del código por ahí.
+ 
+ Principios aplicables para mencionar:
+-- **S (responsabilidad única):** cada archivo hace una sola cosa (SQL solo en `repositories.py`, reglas en `services.py`, HTTP en `routers/`).
++- **S (responsabilidad única):** cada archivo hace una sola cosa (SQL solo en `repositories.py`, reglas en `services.py`, HTTP en `controllers/`).
+ - **O (abierto/cerrado):** nuevo factor = nueva estrategia; nuevo efecto tras evaluar = nuevo observador. Hay una prueba que lo demuestra (`test_nueva_estrategia_sin_modificar_el_calculador`).
+ - **D (inversión de dependencias):** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`.
+ - Arquitectura MVC (ver 5.b). Dentro del Modelo hay capas: services → repositories → database.
+@@ -128,13 +132,13 @@ Principios aplicables para mencionar:
+ 
+ | MVC | Archivos | Qué hace |
+ |---|---|---|
+-| **Vista** | `static/index.html`, `static/js/app.js`, `static/js/api.js`, `static/css/`, y el PDF de `app/report.py` | Pinta las pantallas, recoge lo que escribe el usuario y llama a la API. No calcula nada del riesgo. |
+-| **Controlador** | `app/routers/auth.py`, `app/routers/evaluaciones.py` (más `app/container.py`, que le entrega los servicios) | Recibe la petición HTTP, llama a **un servicio** y responde (JSON o PDF). Traduce errores del servicio a códigos HTTP (404, 409, 401). Sin SQL ni reglas de negocio. |
+-| **Modelo** | `app/models.py` (datos y validación), `app/services.py` + `strategies.py` + `factory.py` + `observers.py` (reglas y patrones), `app/repositories.py` + `app/database.py` (persistencia) | Todo lo que es dato, regla y almacenamiento. |
++| **Vista** | `static/index.html`, `static/js/app.js`, `static/js/api.js`, `static/css/`, y `app/views/report.py` (el PDF) | Pinta las pantallas, recoge lo que escribe el usuario y llama a la API. No calcula nada del riesgo. |
++| **Controlador** | `app/controllers/auth_controller.py`, `app/controllers/evaluaciones_controller.py` (más `app/container.py`, que le entrega los servicios) | Recibe la petición HTTP, llama a **un servicio** y responde (JSON o PDF). Traduce errores del servicio a códigos HTTP (404, 409, 401). Sin SQL ni reglas de negocio. |
++| **Modelo** | la carpeta `app/models/`: `models.py` (datos y validación), `services.py` + `strategies.py` + `factory.py` + `observers.py` (reglas y patrones), `repositories.py` + `database.py` (persistencia) | Todo lo que es dato, regla y almacenamiento. |
+ 
+ Flujo de una evaluación: la **Vista** envía los datos → el **Controlador** (`POST /api/evaluaciones`) los valida con Pydantic y llama a `EvaluacionService.evaluar()` → el **Modelo** calcula (Strategy), clasifica (Factory), notifica (Observer, que guarda con `EvaluacionRepository`) → el Controlador devuelve el resultado → la Vista lo muestra como semáforo.
+ 
+-Regla de oro: **el controlador solo habla con servicios, nunca con repositorios.** Por eso existe `HistorialService` (listar, detalle y presiones) y `AuthService.usuario_desde_token`. La prueba `tests/test_historial.py::TestSeparacionMVC` revisa el código y falla si un router o el contenedor tocan un repositorio, o si aparece SQL fuera de `repositories.py` y `database.py`.
++Regla de oro: **el controlador solo habla con servicios, nunca con repositorios.** Por eso existe `HistorialService` (listar, detalle y presiones) y `AuthService.usuario_desde_token`. La prueba `tests/test_historial.py::TestSeparacionMVC` revisa el código y falla si un controlador o el contenedor tocan un repositorio, o si aparece SQL fuera de `repositories.py` y `database.py`.
+ 
+ ## 6. Decisiones técnicas (útiles para la sección 4 del documento)
+ - **FastAPI:** validación automática con Pydantic (HU-18), documentación en `/docs`, buen rendimiento (RNF < 2 s).
+diff --git a/README.md b/README.md
+index f86128a..9c50a0a 100644
+--- a/README.md
++++ b/README.md
+@@ -22,15 +22,15 @@ python -m pytest
+ 
+ | MVC | Dónde está | Responsabilidad |
+ |---|---|---|
+-| **Vista** | `static/` (HTML, CSS, JS) y el PDF de `app/report.py` | Mostrar datos y recoger lo que escribe el usuario. No tiene reglas de negocio. |
+-| **Controlador** | `app/routers/` (`auth.py`, `evaluaciones.py`) | Recibe la petición HTTP, llama a un servicio y devuelve JSON o PDF. Sin SQL ni reglas. |
+-| **Modelo** | `app/models.py`, `app/services.py` (con `strategies.py`, `factory.py`, `observers.py`), `app/repositories.py`, `app/database.py` | Datos, reglas de negocio, patrones de diseño y persistencia. |
++| **Vista** | `static/` (HTML, CSS, JS) y `app/views/` (`report.py`, el PDF) | Mostrar datos y recoger lo que escribe el usuario. No tiene reglas de negocio. |
++| **Controlador** | `app/controllers/` (`auth_controller.py`, `evaluaciones_controller.py`) | Recibe la petición HTTP, llama a un servicio y devuelve JSON o PDF. Sin SQL ni reglas. |
++| **Modelo** | `app/models/`: `models.py`, `services.py` (con `strategies.py`, `factory.py`, `observers.py`), `repositories.py`, `database.py`, `nutrition.py`, `presion.py`, `security.py` | Datos, reglas de negocio, patrones de diseño y persistencia. |
+ 
+ ```mermaid
+ flowchart LR
+-    V["VISTA<br/>static/ (HTML · CSS · JS)<br/>PDF (report.py)"] -->|HTTP · JSON| C["CONTROLADOR<br/>routers/auth.py<br/>routers/evaluaciones.py"]
++    V["VISTA<br/>static/ (HTML · CSS · JS)<br/>PDF (views/report.py)"] -->|HTTP · JSON| C["CONTROLADOR<br/>controllers/auth_controller.py<br/>controllers/evaluaciones_controller.py"]
+     C --> S["MODELO · servicios<br/>AuthService · EvaluacionService<br/>HistorialService<br/>(Strategy · Factory · Observer)"]
+-    S --> R["MODELO · repositorios<br/>repositories.py (único SQL)"]
++    S --> R["MODELO · repositorios<br/>models/repositories.py (único SQL)"]
+     R --> D[("SQLite")]
+ ```
+ 
+diff --git a/SUSTENTACION.md b/SUSTENTACION.md
+index b51cc74..71889b4 100644
+--- a/SUSTENTACION.md
++++ b/SUSTENTACION.md
+@@ -54,9 +54,9 @@ Usa `Ctrl + P` para saltar a cada archivo y `Ctrl + F` para buscar la clase.
+ 
+ ### MVC (30 segundos, antes de entrar a los patrones)
+ Abre el árbol de carpetas y señala:
+-- "**Vista:** `static/` (HTML, CSS y JS) y el PDF de `report.py`. Solo muestra datos y recoge entradas."
+-- "**Controlador:** `routers/`. Recibe HTTP, llama a un servicio y responde. No tiene reglas ni SQL."
+-- "**Modelo:** `models.py`, `services.py` (con Strategy, Factory y Observer) y `repositories.py`. Aquí viven los datos, las reglas y la persistencia."
++- "**Vista:** `static/` (HTML, CSS y JS) y `views/` (el PDF de `report.py`). Solo muestra datos y recoge entradas."
++- "**Controlador:** `controllers/`. Recibe HTTP, llama a un servicio y responde. No tiene reglas ni SQL."
++- "**Modelo:** la carpeta `models/`: `models.py`, `services.py` (con Strategy, Factory y Observer) y `repositories.py`. Aquí viven los datos, las reglas y la persistencia."
+ - "El controlador **solo habla con servicios**, nunca con repositorios, y hay una prueba que lo verifica."
+ 
+ ### a) `services.py` → método `EvaluacionService.evaluar`  (empieza aquí)
+@@ -86,10 +86,10 @@ Abre el árbol de carpetas y señala:
+ - "Si mañana quiero enviar un correo, creo otro observador y lo suscribo. `EvaluacionService` no cambia."
+ 
+ ### e) Principios (30 segundos)
+-- **S:** cada archivo hace una sola cosa (SQL solo en `repositories.py`, HTTP solo en `routers/`).
++- **S:** cada archivo hace una sola cosa (SQL solo en `repositories.py`, HTTP solo en `controllers/`).
+ - **O:** nuevo factor o efecto = clase nueva, sin modificar lo existente.
+ - **D:** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`, no de las concretas.
+-- **MVC:** Vista (`static/`) → Controlador (`routers/`) → Modelo (servicios → repositorios → base de datos).
++- **MVC:** Vista (`static/`) → Controlador (`controllers/`) → Modelo (servicios → repositorios → base de datos).
+ - **Seguridad:** contraseñas con PBKDF2 y sal, sesión JWT que expira por inactividad, cada usuario solo ve su historial.
+ 
+ ---
+@@ -121,7 +121,7 @@ SQLite es para la demostración (cero instalación). Para 100 usuarios concurren
+ Es una heurística académica con reglas simplificadas, **no un modelo clínico validado**. La aplicación lo advierte en cada resultado y no reemplaza a un médico.
+ 
+ **¿Esto es realmente MVC si el front consume una API?**
+-Sí, es la variante de MVC para aplicaciones web con el front separado. La Vista vive en el navegador (HTML/JS) y pinta lo que el Controlador le devuelve en JSON. El Controlador (los routers de FastAPI) solo traduce HTTP a llamadas a servicios. El Modelo concentra datos, reglas y persistencia. La diferencia con el MVC clásico de servidor es que las pantallas no las renderiza el servidor con plantillas; el único contenido que genera el servidor como vista es el PDF.
++Sí, es la variante de MVC para aplicaciones web con el front separado. La Vista vive en el navegador (HTML/JS) y pinta lo que el Controlador le devuelve en JSON. El Controlador (los archivos de `controllers/`, que usan los routers de FastAPI) solo traduce HTTP a llamadas a servicios. El Modelo concentra datos, reglas y persistencia. La diferencia con el MVC clásico de servidor es que las pantallas no las renderiza el servidor con plantillas; el único contenido que genera el servidor como vista es el PDF.
+ 
+ **¿Por qué el Modelo tiene tantos archivos?**
+ Para que no sea un solo bloque: los servicios tienen las reglas y los patrones, y los repositorios son el único lugar con SQL. Así se puede cambiar SQLite por PostgreSQL tocando solo los repositorios. Una prueba impide que el controlador salte esa separación.
+diff --git a/app/container.py b/app/container.py
+index dcafebd..003b08c 100644
+--- a/app/container.py
++++ b/app/container.py
+@@ -1,13 +1,13 @@
+-"""Contenedor de dependencias: agrupa los SERVICIOS que usan los controladores (routers).
++"""Contenedor de dependencias: agrupa los SERVICIOS que usan los controladores (controllers/).
+ 
+-Los routers no reciben repositorios: toda operación pasa por un servicio.
++Los controladores no reciben repositorios: toda operación pasa por un servicio.
+ """
+ from dataclasses import dataclass
+ 
+ from fastapi import Depends, HTTPException, Request
+ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+ 
+-from .services import AuthService, EvaluacionService, HistorialService
++from .models.services import AuthService, EvaluacionService, HistorialService
+ 
+ 
+ @dataclass
+diff --git a/app/routers/__init__.py b/app/controllers/__init__.py
+similarity index 100%
+rename from app/routers/__init__.py
+rename to app/controllers/__init__.py
+diff --git a/app/routers/auth.py b/app/controllers/auth_controller.py
+similarity index 90%
+rename from app/routers/auth.py
+rename to app/controllers/auth_controller.py
+index 63fd847..4cb9698 100644
+--- a/app/routers/auth.py
++++ b/app/controllers/auth_controller.py
+@@ -5,8 +5,8 @@ Traduce HTTP a llamadas a AuthService y las excepciones del servicio a códigos
+ from fastapi import APIRouter, Depends, HTTPException
+ 
+ from ..container import Contenedor, get_contenedor, usuario_actual
+-from ..models import LoginIn, RegistroIn, TokenOut
+-from ..services import CorreoYaRegistrado, CredencialesInvalidas
++from ..models.models import LoginIn, RegistroIn, TokenOut
++from ..models.services import CorreoYaRegistrado, CredencialesInvalidas
+ 
+ router = APIRouter(prefix="/api/auth", tags=["autenticación"])
+ 
+diff --git a/app/routers/evaluaciones.py b/app/controllers/evaluaciones_controller.py
+similarity index 93%
+rename from app/routers/evaluaciones.py
+rename to app/controllers/evaluaciones_controller.py
+index 7d8bec4..a51df30 100644
+--- a/app/routers/evaluaciones.py
++++ b/app/controllers/evaluaciones_controller.py
+@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException
+ from fastapi.responses import Response
+ 
+ from ..container import Contenedor, get_contenedor, usuario_actual
+-from ..models import DatosEvaluacion, ResultadoEvaluacion
+-from ..report import generar_pdf
+-from ..services import EvaluacionNoEncontrada
++from ..models.models import DatosEvaluacion, ResultadoEvaluacion
++from ..views.report import generar_pdf
++from ..models.services import EvaluacionNoEncontrada
+ 
+ router = APIRouter(prefix="/api/evaluaciones", tags=["evaluaciones"])
+ 
+diff --git a/app/main.py b/app/main.py
+index 3de8fa2..23dd5ba 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -2,9 +2,9 @@
+ 
+ Arquitectura MVC (el Modelo se organiza internamente en capas):
+ 
+-  Vista ........... static/ (HTML, CSS, JS) y el PDF de report.py
+-  Controlador ..... routers/  (HTTP: reciben la petición, llaman a un servicio, responden)
+-  Modelo .......... models.py + services.py (con strategies, factory, observers)
++  Vista ........... static/ (HTML, CSS, JS) y views/ (el PDF de views/report.py)
++  Controlador ..... controllers/  (HTTP: reciben la petición, llaman a un servicio, responden)
++  Modelo .......... models/  models.py + services.py (con strategies, factory, observers)
+                     -> repositories.py (SQL) -> database.py (SQLite)
+ 
+ El flujo siempre es:  Vista -> Controlador -> servicio -> repositorio -> base de datos.
+@@ -18,13 +18,13 @@ from fastapi.staticfiles import StaticFiles
+ 
+ from . import config
+ from .container import Contenedor
+-from .database import Database
++from .models.database import Database
+ from .errors import traducir_errores
+-from .observers import AlertaPresionObserver, HistorialObserver
+-from .repositories import EvaluacionRepository, UsuarioRepository
+-from .routers import auth, evaluaciones
+-from .security import TokenService
+-from .services import AuthService, EvaluacionService, HistorialService
++from .models.observers import AlertaPresionObserver, HistorialObserver
++from .models.repositories import EvaluacionRepository, UsuarioRepository
++from .controllers import auth_controller, evaluaciones_controller
++from .models.security import TokenService
++from .models.services import AuthService, EvaluacionService, HistorialService
+ 
+ 
+ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
+@@ -60,8 +60,8 @@ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
+                 respuesta.headers["X-Token-Renovado"] = tokens.crear(datos["uid"])
+         return respuesta
+ 
+-    app.include_router(auth.router)
+-    app.include_router(evaluaciones.router)
++    app.include_router(auth_controller.router)
++    app.include_router(evaluaciones_controller.router)
+ 
+     @app.get("/api/salud", tags=["sistema"])
+     def salud():
+diff --git a/app/models/__init__.py b/app/models/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/app/database.py b/app/models/database.py
+similarity index 100%
+rename from app/database.py
+rename to app/models/database.py
+diff --git a/app/factory.py b/app/models/factory.py
+similarity index 100%
+rename from app/factory.py
+rename to app/models/factory.py
+diff --git a/app/models.py b/app/models/models.py
+similarity index 100%
+rename from app/models.py
+rename to app/models/models.py
+diff --git a/app/nutrition.py b/app/models/nutrition.py
+similarity index 100%
+rename from app/nutrition.py
+rename to app/models/nutrition.py
+diff --git a/app/observers.py b/app/models/observers.py
+similarity index 100%
+rename from app/observers.py
+rename to app/models/observers.py
+diff --git a/app/presion.py b/app/models/presion.py
+similarity index 100%
+rename from app/presion.py
+rename to app/models/presion.py
+diff --git a/app/repositories.py b/app/models/repositories.py
+similarity index 100%
+rename from app/repositories.py
+rename to app/models/repositories.py
+diff --git a/app/security.py b/app/models/security.py
+similarity index 100%
+rename from app/security.py
+rename to app/models/security.py
+diff --git a/app/services.py b/app/models/services.py
+similarity index 98%
+rename from app/services.py
+rename to app/models/services.py
+index 6704f9c..f8cda79 100644
+--- a/app/services.py
++++ b/app/models/services.py
+@@ -1,6 +1,6 @@
+ """Capa de servicios (parte del MODELO en MVC): orquesta los patrones y las reglas de negocio.
+ 
+-Los controladores (routers) solo hablan con estas clases; nunca con los repositorios.
++Los controladores (carpeta controllers/) solo hablan con estas clases; nunca con los repositorios.
+ 
+   - CalculadorRiesgo ... Context del patrón Strategy.
+   - EvaluacionService .. Subject del patrón Observer y fachada del flujo de evaluación.
+diff --git a/app/strategies.py b/app/models/strategies.py
+similarity index 100%
+rename from app/strategies.py
+rename to app/models/strategies.py
+diff --git a/app/views/__init__.py b/app/views/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/app/report.py b/app/views/report.py
+similarity index 100%
+rename from app/report.py
+rename to app/views/report.py
+diff --git a/seed_demo.py b/seed_demo.py
+index c851170..6ceea50 100644
+--- a/seed_demo.py
++++ b/seed_demo.py
+@@ -7,12 +7,12 @@ Es seguro ejecutarlo varias veces: no duplica el usuario ni las evaluaciones.
+ Se ejecuta desde la carpeta del proyecto:  python seed_demo.py
+ """
+ from app import config
+-from app.database import Database
+-from app.models import DatosEvaluacion
+-from app.observers import AlertaPresionObserver, HistorialObserver
+-from app.repositories import EvaluacionRepository, UsuarioRepository
+-from app.security import hashear_password
+-from app.services import EvaluacionService
++from app.models.database import Database
++from app.models.models import DatosEvaluacion
++from app.models.observers import AlertaPresionObserver, HistorialObserver
++from app.models.repositories import EvaluacionRepository, UsuarioRepository
++from app.models.security import hashear_password
++from app.models.services import EvaluacionService
+ 
+ CORREO = "demo@cardioprev.com"
+ PASSWORD = "Demo12345"
+diff --git a/tests/test_cuentas_pdf.py b/tests/test_cuentas_pdf.py
+index 7f1388d..26feaf6 100644
+--- a/tests/test_cuentas_pdf.py
++++ b/tests/test_cuentas_pdf.py
+@@ -4,12 +4,12 @@ import tempfile
+ import time
+ import unittest
+ 
+-from app.database import Database
+-from app.models import DatosEvaluacion, RegistroIn
+-from app.report import generar_pdf
+-from app.repositories import UsuarioRepository
+-from app.security import TokenService, hashear_password, verificar_password
+-from app.services import (AuthService, CorreoYaRegistrado, CredencialesInvalidas,
++from app.models.database import Database
++from app.models.models import DatosEvaluacion, RegistroIn
++from app.views.report import generar_pdf
++from app.models.repositories import UsuarioRepository
++from app.models.security import TokenService, hashear_password, verificar_password
++from app.models.services import (AuthService, CorreoYaRegistrado, CredencialesInvalidas,
+                           EvaluacionService)
+ from pydantic import ValidationError
+ 
+diff --git a/tests/test_habitos_presion.py b/tests/test_habitos_presion.py
+index 27103ba..93b4474 100644
+--- a/tests/test_habitos_presion.py
++++ b/tests/test_habitos_presion.py
+@@ -5,14 +5,14 @@ import unittest
+ 
+ from pydantic import ValidationError
+ 
+-from app.database import Database
++from app.models.database import Database
+ from app.errors import traducir_errores
+-from app.models import DatosEvaluacion, clasificar_alimentacion
+-from app.presion import clasificar_presion
+-from app.repositories import EvaluacionRepository, UsuarioRepository
+-from app.observers import HistorialObserver
+-from app.report import generar_pdf
+-from app.services import EvaluacionService
++from app.models.models import DatosEvaluacion, clasificar_alimentacion
++from app.models.presion import clasificar_presion
++from app.models.repositories import EvaluacionRepository, UsuarioRepository
++from app.models.observers import HistorialObserver
++from app.views.report import generar_pdf
++from app.models.services import EvaluacionService
+ 
+ from .datos import SANO
+ 
+diff --git a/tests/test_historial.py b/tests/test_historial.py
+index 6481d3d..c7112cb 100644
+--- a/tests/test_historial.py
++++ b/tests/test_historial.py
+@@ -5,12 +5,12 @@ import tempfile
+ import unittest
+ from pathlib import Path
+ 
+-from app.database import Database
+-from app.models import DatosEvaluacion
+-from app.observers import AlertaPresionObserver, HistorialObserver
+-from app.repositories import EvaluacionRepository, UsuarioRepository
+-from app.security import TokenService
+-from app.services import (AuthService, EvaluacionNoEncontrada, EvaluacionService,
++from app.models.database import Database
++from app.models.models import DatosEvaluacion
++from app.models.observers import AlertaPresionObserver, HistorialObserver
++from app.models.repositories import EvaluacionRepository, UsuarioRepository
++from app.models.security import TokenService
++from app.models.services import (AuthService, EvaluacionNoEncontrada, EvaluacionService,
+                           HistorialService)
+ 
+ from .datos import RIESGOSO, SANO
+@@ -88,7 +88,7 @@ class TestUsuarioDesdeToken(unittest.TestCase):
+ 
+ 
+ class TestSeparacionMVC(unittest.TestCase):
+-    """Los controladores (routers) y el contenedor no pueden depender de los repositorios:
++    """Los controladores (app/controllers/) y el contenedor no pueden depender de los repositorios:
+     todo pasa por un servicio. Se revisa el código fuente, así que no necesita FastAPI."""
+ 
+     @staticmethod
+@@ -111,8 +111,8 @@ class TestSeparacionMVC(unittest.TestCase):
+                 return True
+         return False
+ 
+-    def test_routers_y_contenedor_no_importan_repositorios(self):
+-        archivos = sorted((RAIZ_APP / "routers").glob("*.py")) + [RAIZ_APP / "container.py"]
++    def test_controladores_y_contenedor_no_importan_repositorios(self):
++        archivos = sorted((RAIZ_APP / "controllers").glob("*.py")) + [RAIZ_APP / "container.py"]
+         self.assertGreaterEqual(len(archivos), 3)
+         for ruta in archivos:
+             with self.subTest(archivo=ruta.name):
+diff --git a/tests/test_riesgo.py b/tests/test_riesgo.py
+index bc5f957..6080e04 100644
+--- a/tests/test_riesgo.py
++++ b/tests/test_riesgo.py
+@@ -3,15 +3,15 @@ import os
+ import tempfile
+ import unittest
+ 
+-from app.database import Database
++from app.models.database import Database
+ from app.errors import traducir_errores
+-from app.factory import NivelRiesgoFactory, RiesgoAlto, RiesgoBajo, RiesgoMedio
+-from app.models import DatosEvaluacion
+-from app.nutrition import calcular_nutricion
+-from app.observers import AlertaPresionObserver, HistorialObserver
+-from app.repositories import EvaluacionRepository, UsuarioRepository
+-from app.services import CalculadorRiesgo, EvaluacionService
+-from app.strategies import FactorStrategy, TabacoStrategy
++from app.models.factory import NivelRiesgoFactory, RiesgoAlto, RiesgoBajo, RiesgoMedio
++from app.models.models import DatosEvaluacion
++from app.models.nutrition import calcular_nutricion
++from app.models.observers import AlertaPresionObserver, HistorialObserver
++from app.models.repositories import EvaluacionRepository, UsuarioRepository
++from app.models.services import CalculadorRiesgo, EvaluacionService
++from app.models.strategies import FactorStrategy, TabacoStrategy
+ from pydantic import ValidationError
+ 
+ from .datos import RIESGOSO, SANO
+diff --git a/verificar.py b/verificar.py
+index f17c9b6..9864c75 100644
+--- a/verificar.py
++++ b/verificar.py
+@@ -14,22 +14,24 @@ ARCHIVOS = [
+     "app/__init__.py",
+     "app/main.py",
+     "app/config.py",
+-    "app/database.py",
+-    "app/models.py",
+-    "app/security.py",
+-    "app/repositories.py",
+-    "app/services.py",
+-    "app/strategies.py",
+-    "app/factory.py",
+-    "app/observers.py",
+-    "app/nutrition.py",
+-    "app/report.py",
++    "app/models/database.py",
++    "app/models/models.py",
++    "app/models/security.py",
++    "app/models/repositories.py",
++    "app/models/services.py",
++    "app/models/strategies.py",
++    "app/models/factory.py",
++    "app/models/observers.py",
++    "app/models/nutrition.py",
++    "app/views/report.py",
+     "app/errors.py",
+-    "app/presion.py",
++    "app/models/presion.py",
+     "app/container.py",
+-    "app/routers/__init__.py",
+-    "app/routers/auth.py",
+-    "app/routers/evaluaciones.py",
++    "app/models/__init__.py",
++    "app/views/__init__.py",
++    "app/controllers/__init__.py",
++    "app/controllers/auth_controller.py",
++    "app/controllers/evaluaciones_controller.py",
+     "static/index.html",
+     "static/css/estilos.css",
+     "static/js/app.js",

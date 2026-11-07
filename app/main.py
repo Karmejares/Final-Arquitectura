@@ -2,9 +2,9 @@
 
 Arquitectura MVC (el Modelo se organiza internamente en capas):
 
-  Vista ........... static/ (HTML, CSS, JS) y el PDF de report.py
-  Controlador ..... routers/  (HTTP: reciben la petición, llaman a un servicio, responden)
-  Modelo .......... models.py + services.py (con strategies, factory, observers)
+  Vista ........... static/ (HTML, CSS, JS) y views/ (el PDF de views/report.py)
+  Controlador ..... controllers/  (HTTP: reciben la petición, llaman a un servicio, responden)
+  Modelo .......... models/  models.py + services.py (con strategies, factory, observers)
                     -> repositories.py (SQL) -> database.py (SQLite)
 
 El flujo siempre es:  Vista -> Controlador -> servicio -> repositorio -> base de datos.
@@ -18,13 +18,13 @@ from fastapi.staticfiles import StaticFiles
 
 from . import config
 from .container import Contenedor
-from .database import Database
+from .models.database import Database
 from .errors import traducir_errores
-from .observers import AlertaPresionObserver, HistorialObserver
-from .repositories import EvaluacionRepository, UsuarioRepository
-from .routers import auth, evaluaciones
-from .security import TokenService
-from .services import AuthService, EvaluacionService, HistorialService
+from .models.observers import AlertaPresionObserver, HistorialObserver
+from .models.repositories import EvaluacionRepository, UsuarioRepository
+from .controllers import auth_controller, evaluaciones_controller
+from .models.security import TokenService
+from .models.services import AuthService, EvaluacionService, HistorialService
 
 
 def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
@@ -60,8 +60,8 @@ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
                 respuesta.headers["X-Token-Renovado"] = tokens.crear(datos["uid"])
         return respuesta
 
-    app.include_router(auth.router)
-    app.include_router(evaluaciones.router)
+    app.include_router(auth_controller.router)
+    app.include_router(evaluaciones_controller.router)
 
     @app.get("/api/salud", tags=["sistema"])
     def salud():

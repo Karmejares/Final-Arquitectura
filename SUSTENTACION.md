@@ -54,9 +54,9 @@ Usa `Ctrl + P` para saltar a cada archivo y `Ctrl + F` para buscar la clase.
 
 ### MVC (30 segundos, antes de entrar a los patrones)
 Abre el árbol de carpetas y señala:
-- "**Vista:** `static/` (HTML, CSS y JS) y el PDF de `report.py`. Solo muestra datos y recoge entradas."
-- "**Controlador:** `routers/`. Recibe HTTP, llama a un servicio y responde. No tiene reglas ni SQL."
-- "**Modelo:** `models.py`, `services.py` (con Strategy, Factory y Observer) y `repositories.py`. Aquí viven los datos, las reglas y la persistencia."
+- "**Vista:** `static/` (HTML, CSS y JS) y `views/` (el PDF de `report.py`). Solo muestra datos y recoge entradas."
+- "**Controlador:** `controllers/`. Recibe HTTP, llama a un servicio y responde. No tiene reglas ni SQL."
+- "**Modelo:** la carpeta `models/`: `models.py`, `services.py` (con Strategy, Factory y Observer) y `repositories.py`. Aquí viven los datos, las reglas y la persistencia."
 - "El controlador **solo habla con servicios**, nunca con repositorios, y hay una prueba que lo verifica."
 
 ### a) `services.py` → método `EvaluacionService.evaluar`  (empieza aquí)
@@ -86,10 +86,10 @@ Abre el árbol de carpetas y señala:
 - "Si mañana quiero enviar un correo, creo otro observador y lo suscribo. `EvaluacionService` no cambia."
 
 ### e) Principios (30 segundos)
-- **S:** cada archivo hace una sola cosa (SQL solo en `repositories.py`, HTTP solo en `routers/`).
+- **S:** cada archivo hace una sola cosa (SQL solo en `repositories.py`, HTTP solo en `controllers/`).
 - **O:** nuevo factor o efecto = clase nueva, sin modificar lo existente.
 - **D:** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`, no de las concretas.
-- **MVC:** Vista (`static/`) → Controlador (`routers/`) → Modelo (servicios → repositorios → base de datos).
+- **MVC:** Vista (`static/`) → Controlador (`controllers/`) → Modelo (servicios → repositorios → base de datos).
 - **Seguridad:** contraseñas con PBKDF2 y sal, sesión JWT que expira por inactividad, cada usuario solo ve su historial.
 
 ---
@@ -121,7 +121,7 @@ SQLite es para la demostración (cero instalación). Para 100 usuarios concurren
 Es una heurística académica con reglas simplificadas, **no un modelo clínico validado**. La aplicación lo advierte en cada resultado y no reemplaza a un médico.
 
 **¿Esto es realmente MVC si el front consume una API?**
-Sí, es la variante de MVC para aplicaciones web con el front separado. La Vista vive en el navegador (HTML/JS) y pinta lo que el Controlador le devuelve en JSON. El Controlador (los routers de FastAPI) solo traduce HTTP a llamadas a servicios. El Modelo concentra datos, reglas y persistencia. La diferencia con el MVC clásico de servidor es que las pantallas no las renderiza el servidor con plantillas; el único contenido que genera el servidor como vista es el PDF.
+Sí, es la variante de MVC para aplicaciones web con el front separado. La Vista vive en el navegador (HTML/JS) y pinta lo que el Controlador le devuelve en JSON. El Controlador (los archivos de `controllers/`, que usan los routers de FastAPI) solo traduce HTTP a llamadas a servicios. El Modelo concentra datos, reglas y persistencia. La diferencia con el MVC clásico de servidor es que las pantallas no las renderiza el servidor con plantillas; el único contenido que genera el servidor como vista es el PDF.
 
 **¿Por qué el Modelo tiene tantos archivos?**
 Para que no sea un solo bloque: los servicios tienen las reglas y los patrones, y los repositorios son el único lugar con SQL. Así se puede cambiar SQLite por PostgreSQL tocando solo los repositorios. Una prueba impide que el controlador salte esa separación.

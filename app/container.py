@@ -1,13 +1,13 @@
-"""Contenedor de dependencias: agrupa los SERVICIOS que usan los controladores (routers).
+"""Contenedor de dependencias: agrupa los SERVICIOS que usan los controladores (controllers/).
 
-Los routers no reciben repositorios: toda operación pasa por un servicio.
+Los controladores no reciben repositorios: toda operación pasa por un servicio.
 """
 from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .services import AuthService, EvaluacionService, HistorialService
+from .models.services import AuthService, EvaluacionService, HistorialService
 
 
 @dataclass
