@@ -14,7 +14,7 @@ export class VistaDatos extends VistaModulo {
     super(d);
   }
 
-  protected seccion(): SeccionId { return 'datos'; }
+  seccion(): SeccionId { return 'datos'; }
 
   protected titulo(): string { return 'Registrar Datos Personales'; }
 

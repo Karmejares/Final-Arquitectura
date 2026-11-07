@@ -8,7 +8,7 @@ const AGUA: readonly OpcionCampo[] = [['menos_de_1_litro', 'Menos de 1 litro'], 
 
 /** Pantalla de hábitos alimenticios. */
 export class VistaAlimentacion extends VistaModulo {
-  protected seccion(): SeccionId { return 'alimentacion'; }
+  seccion(): SeccionId { return 'alimentacion'; }
 
   protected titulo(): string { return 'Hábitos Alimenticios'; }
 

@@ -4,7 +4,7 @@ import { VistaModulo } from './VistaModulo';
 
 /** Pantalla de hábitos de consumo (preguntas de sí o no). */
 export class VistaConsumo extends VistaModulo {
-  protected seccion(): SeccionId { return 'consumo'; }
+  seccion(): SeccionId { return 'consumo'; }
 
   protected titulo(): string { return 'Hábitos de Consumo'; }
 
