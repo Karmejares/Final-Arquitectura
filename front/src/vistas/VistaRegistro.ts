@@ -1,32 +1,18 @@
-import type { ApiAuth } from '../contratos/ApiAuth';
-import type { Avisos } from '../interfaz/Avisos';
 import type { BarraNavegacion } from '../interfaz/BarraNavegacion';
-import type { ManejadorErrores } from '../interfaz/ManejadorErrores';
-import type { Navegador } from '../interfaz/Navegador';
+import type { DatosRegistro } from '../tipos/DatosRegistro';
 import type { TipoBarra } from '../tipos/TipoBarra';
 import { Vista } from './Vista';
 
-interface DepsRegistro {
-  barra: BarraNavegacion;
-  api: ApiAuth;
-  avisos: Avisos;
-  navegador: Navegador;
-  errores: ManejadorErrores;
-}
-
-/** Pantalla de registro de cuenta. */
+/** Pantalla de registro de cuenta (VISTA): dibuja el formulario y avisa cuando el usuario lo envía. */
 export class VistaRegistro extends Vista {
-  private readonly api: ApiAuth;
-  private readonly avisos: Avisos;
-  private readonly navegador: Navegador;
-  private readonly errores: ManejadorErrores;
+  private manejadorEnvio: ((datos: DatosRegistro) => void) | null = null;
 
-  constructor(d: DepsRegistro) {
-    super(d.barra);
-    this.api = d.api;
-    this.avisos = d.avisos;
-    this.navegador = d.navegador;
-    this.errores = d.errores;
+  constructor(barra: BarraNavegacion) {
+    super(barra);
+  }
+
+  alEnviar(manejador: (datos: DatosRegistro) => void): void {
+    this.manejadorEnvio = manejador;
   }
 
   protected tipoBarra(): TipoBarra {
@@ -42,16 +28,13 @@ export class VistaRegistro extends Vista {
           <small id="ayuda-pw" class="muted">Mínimo 8 caracteres, con letras y números.</small></div>
         <button class="btn btn-azul btn-ancho" type="submit">Registrarse</button></form>
       <p class="enlace-centro">¿Ya tienes cuenta? <a href="#/login">Inicia sesión</a></p></div></div>`);
-    this.$<HTMLFormElement>('#form').onsubmit = async (ev) => {
-      ev.preventDefault(); this.avisos.limpiar();
-      try {
-        await this.api.registro({
-          nombre: this.$<HTMLInputElement>('#nombre').value.trim(),
-          correo: this.$<HTMLInputElement>('#correo').value.trim(),
-          password: this.$<HTMLInputElement>('#password').value,
-        });
-        this.avisos.avisarLuego('Cuenta creada. Ahora inicia sesión.'); this.navegador.ir('#/login');
-      } catch (e) { this.errores.mostrar(e); }
+    this.$<HTMLFormElement>('#form').onsubmit = (ev) => {
+      ev.preventDefault();
+      this.manejadorEnvio?.({
+        nombre: this.$<HTMLInputElement>('#nombre').value.trim(),
+        correo: this.$<HTMLInputElement>('#correo').value.trim(),
+        password: this.$<HTMLInputElement>('#password').value,
+      });
     };
   }
 }
