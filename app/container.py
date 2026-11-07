@@ -1,21 +1,20 @@
-"""Contenedor de dependencias: agrupa los objetos que comparten los routers."""
+"""Contenedor de dependencias: agrupa los SERVICIOS que usan los controladores (routers).
+
+Los routers no reciben repositorios: toda operación pasa por un servicio.
+"""
 from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .repositories import EvaluacionRepository, UsuarioRepository
-from .security import TokenService
-from .services import AuthService, EvaluacionService
+from .services import AuthService, EvaluacionService, HistorialService
 
 
 @dataclass
 class Contenedor:
-    tokens: TokenService
-    usuarios: UsuarioRepository
-    evaluaciones_repo: EvaluacionRepository
     auth: AuthService
     evaluaciones: EvaluacionService
+    historial: HistorialService
 
 
 def get_contenedor(request: Request) -> Contenedor:
@@ -30,8 +29,7 @@ def usuario_actual(credenciales: HTTPAuthorizationCredentials = Depends(_bearer)
     """Exige un token válido y devuelve el usuario autenticado (401 si no)."""
     if credenciales is None:
         raise HTTPException(status_code=401, detail="Debes iniciar sesión.")
-    datos = c.tokens.decodificar(credenciales.credentials)
-    usuario = c.usuarios.por_id(datos["uid"]) if datos else None
+    usuario = c.auth.usuario_desde_token(credenciales.credentials)
     if usuario is None:
         raise HTTPException(status_code=401, detail="Tu sesión expiró. Inicia sesión de nuevo.")
     return usuario

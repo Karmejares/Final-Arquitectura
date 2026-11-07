@@ -1,7 +1,13 @@
 """Punto de entrada de CardioPrev.
 
-Arquitectura en capas:  routers (HTTP)  ->  services (reglas de negocio + patrones)
-                        ->  repositories (SQL)  ->  database (SQLite)
+Arquitectura MVC (el Modelo se organiza internamente en capas):
+
+  Vista ........... static/ (HTML, CSS, JS) y el PDF de report.py
+  Controlador ..... routers/  (HTTP: reciben la petición, llaman a un servicio, responden)
+  Modelo .......... models.py + services.py (con strategies, factory, observers)
+                    -> repositories.py (SQL) -> database.py (SQLite)
+
+El flujo siempre es:  Vista -> Controlador -> servicio -> repositorio -> base de datos.
 """
 from typing import Optional
 
@@ -18,7 +24,7 @@ from .observers import AlertaPresionObserver, HistorialObserver
 from .repositories import EvaluacionRepository, UsuarioRepository
 from .routers import auth, evaluaciones
 from .security import TokenService
-from .services import AuthService, EvaluacionService
+from .services import AuthService, EvaluacionService, HistorialService
 
 
 def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
@@ -34,10 +40,9 @@ def create_app(db_path: Optional[str] = None, secreto: Optional[str] = None,
 
     app = FastAPI(title="CardioPrev", version="1.0",
                   description="Estimación orientativa del riesgo cardiovascular")
-    app.state.contenedor = Contenedor(tokens=tokens, usuarios=usuarios,
-                                      evaluaciones_repo=evals_repo,
-                                      auth=AuthService(usuarios, tokens),
-                                      evaluaciones=servicio)
+    app.state.contenedor = Contenedor(auth=AuthService(usuarios, tokens),
+                                      evaluaciones=servicio,
+                                      historial=HistorialService(evals_repo))
 
     @app.exception_handler(RequestValidationError)
     async def errores_de_validacion(request: Request, exc: RequestValidationError):

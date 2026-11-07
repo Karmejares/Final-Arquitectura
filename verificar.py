@@ -44,6 +44,7 @@ ARCHIVOS = [
     "tests/test_riesgo.py",
     "tests/test_cuentas_pdf.py",
     "tests/test_habitos_presion.py",
+    "tests/test_historial.py",
     "tests/test_api.py",
 ]
 

@@ -1,4 +1,7 @@
-"""HU-01 registro y HU-02 inicio de sesión."""
+"""CONTROLADOR (MVC) · HU-01 registro y HU-02 inicio de sesión.
+
+Traduce HTTP a llamadas a AuthService y las excepciones del servicio a códigos de estado.
+"""
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..container import Contenedor, get_contenedor, usuario_actual

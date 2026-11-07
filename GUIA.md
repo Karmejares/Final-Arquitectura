@@ -25,7 +25,7 @@ cardioprev/
 │   ├── models.py             <- validación de datos de entrada y forma de las respuestas
 │   ├── security.py           <- hash de contraseñas y tokens JWT
 │   ├── repositories.py       <- ÚNICO lugar con SQL (usuarios y evaluaciones)
-│   ├── services.py           <- lógica de negocio: CalculadorRiesgo, EvaluacionService, AuthService
+│   ├── services.py           <- lógica de negocio: CalculadorRiesgo, EvaluacionService, HistorialService, AuthService
 │   ├── strategies.py         <- PATRÓN STRATEGY (un puntaje por factor de riesgo)
 │   ├── factory.py            <- PATRÓN FACTORY METHOD (nivel bajo / medio / alto + semáforo)
 │   ├── observers.py          <- PATRÓN OBSERVER (alerta de presión + guardado en historial)
@@ -50,6 +50,7 @@ cardioprev/
     ├── datos.py
     ├── test_riesgo.py
     ├── test_cuentas_pdf.py
+    ├── test_historial.py     <- historial, usuario de la sesión y separación MVC
     └── test_api.py
 ```
 También van en la raíz: `seed_demo.py` (datos de ejemplo), `iniciar.bat` / `iniciar.sh` (arranque con un clic) y `SUSTENTACION.md` (guion).
@@ -120,8 +121,20 @@ Principios aplicables para mencionar:
 - **S (responsabilidad única):** cada archivo hace una sola cosa (SQL solo en `repositories.py`, reglas en `services.py`, HTTP en `routers/`).
 - **O (abierto/cerrado):** nuevo factor = nueva estrategia; nuevo efecto tras evaluar = nuevo observador. Hay una prueba que lo demuestra (`test_nueva_estrategia_sin_modificar_el_calculador`).
 - **D (inversión de dependencias):** el servicio depende de las abstracciones `FactorStrategy` y `EvaluacionObserver`.
-- Arquitectura en capas: routers → services → repositories → database.
+- Arquitectura MVC (ver 5.b). Dentro del Modelo hay capas: services → repositories → database.
 - Seguridad: contraseñas con PBKDF2 y sal, JWT con expiración, cierre de sesión por inactividad, cada usuario solo ve su historial, validación en servidor y en cliente, salida del HTML escapada (evita XSS).
+
+## 5.b Arquitectura MVC: qué es cada parte
+
+| MVC | Archivos | Qué hace |
+|---|---|---|
+| **Vista** | `static/index.html`, `static/js/app.js`, `static/js/api.js`, `static/css/`, y el PDF de `app/report.py` | Pinta las pantallas, recoge lo que escribe el usuario y llama a la API. No calcula nada del riesgo. |
+| **Controlador** | `app/routers/auth.py`, `app/routers/evaluaciones.py` (más `app/container.py`, que le entrega los servicios) | Recibe la petición HTTP, llama a **un servicio** y responde (JSON o PDF). Traduce errores del servicio a códigos HTTP (404, 409, 401). Sin SQL ni reglas de negocio. |
+| **Modelo** | `app/models.py` (datos y validación), `app/services.py` + `strategies.py` + `factory.py` + `observers.py` (reglas y patrones), `app/repositories.py` + `app/database.py` (persistencia) | Todo lo que es dato, regla y almacenamiento. |
+
+Flujo de una evaluación: la **Vista** envía los datos → el **Controlador** (`POST /api/evaluaciones`) los valida con Pydantic y llama a `EvaluacionService.evaluar()` → el **Modelo** calcula (Strategy), clasifica (Factory), notifica (Observer, que guarda con `EvaluacionRepository`) → el Controlador devuelve el resultado → la Vista lo muestra como semáforo.
+
+Regla de oro: **el controlador solo habla con servicios, nunca con repositorios.** Por eso existe `HistorialService` (listar, detalle y presiones) y `AuthService.usuario_desde_token`. La prueba `tests/test_historial.py::TestSeparacionMVC` revisa el código y falla si un router o el contenedor tocan un repositorio, o si aparece SQL fuera de `repositories.py` y `database.py`.
 
 ## 6. Decisiones técnicas (útiles para la sección 4 del documento)
 - **FastAPI:** validación automática con Pydantic (HU-18), documentación en `/docs`, buen rendimiento (RNF < 2 s).
