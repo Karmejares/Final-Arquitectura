@@ -335,14 +335,181 @@
     }
   };
 
+  // src/controladores/ControladorHistorial.ts
+  var ControladorHistorial = class {
+    constructor(vista, api, descarga, errores) {
+      this.vista = vista;
+      this.api = api;
+      this.descarga = descarga;
+      this.errores = errores;
+      vista.alMostrar(() => {
+        void this.cargar();
+      });
+      vista.alDescargarPdf((id) => {
+        void this.descarga.descargar(id);
+      });
+    }
+    async cargar() {
+      try {
+        this.vista.mostrarHistorial(await this.api.historial());
+      } catch (e) {
+        this.errores.mostrar(e);
+      }
+    }
+  };
+
+  // src/controladores/ControladorInicio.ts
+  var ControladorInicio = class {
+    constructor(vista, flujo) {
+      this.flujo = flujo;
+      vista.alVerRiesgo(() => {
+        void this.flujo.verRiesgo();
+      });
+    }
+  };
+
+  // src/controladores/ControladorLogin.ts
+  var ControladorLogin = class {
+    constructor(vista, api, sesion, repoBorrador, avisos, navegador, errores) {
+      this.api = api;
+      this.sesion = sesion;
+      this.repoBorrador = repoBorrador;
+      this.avisos = avisos;
+      this.navegador = navegador;
+      this.errores = errores;
+      vista.alEnviar((correo, password) => {
+        void this.entrar(correo, password);
+      });
+    }
+    async entrar(correo, password) {
+      this.avisos.limpiar();
+      try {
+        const r = await this.api.login(correo, password);
+        this.sesion.abrir(r.token, r.nombre);
+        this.repoBorrador.borrar();
+        this.avisos.avisarLuego("Bienvenido " + this.sesion.nombre() + " \u{1F44B}");
+        this.navegador.ir("#/inicio");
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 401) this.avisos.mostrar(e.mensajes[0], "error");
+        else this.errores.mostrar(e);
+      }
+    }
+  };
+
+  // src/controladores/ControladorModulo.ts
+  var ControladorModulo = class {
+    constructor(vista, repoBorrador, catalogo, flujo, avisos, navegador) {
+      this.vista = vista;
+      this.repoBorrador = repoBorrador;
+      this.catalogo = catalogo;
+      this.flujo = flujo;
+      this.avisos = avisos;
+      this.navegador = navegador;
+      vista.alEnviar((datos, seq) => {
+        void this.guardar(datos, seq);
+      });
+    }
+    async guardar(datos, seq) {
+      this.avisos.limpiar();
+      const seccion = this.vista.seccion();
+      const faltan = this.catalogo.definicion(seccion).campos.filter((c) => datos[c] === void 0 || datos[c] === "" || Number.isNaN(datos[c]));
+      if (faltan.length) return this.avisos.mostrar("Completa todos los campos para continuar.", "error");
+      const borrador = this.repoBorrador.leer();
+      borrador.actualizar(seccion, datos);
+      this.repoBorrador.guardar(borrador);
+      if (seq) {
+        const siguiente = this.catalogo.siguiente(seccion);
+        return siguiente ? this.navegador.ir(this.catalogo.definicion(siguiente).ruta + "?seq=1") : this.flujo.enviar();
+      }
+      this.avisos.avisarLuego("Datos guardados correctamente: " + this.catalogo.definicion(seccion).titulo.toLowerCase() + ".");
+      this.navegador.ir("#/inicio");
+    }
+  };
+
+  // src/controladores/ControladorPresion.ts
+  var ControladorPresion = class extends ControladorModulo {
+    constructor(vista, repoBorrador, catalogo, flujo, avisos, navegador, api) {
+      super(vista, repoBorrador, catalogo, flujo, avisos, navegador);
+      this.vista = vista;
+      this.api = api;
+      vista.alMostrar((seq) => {
+        if (!seq) void this.cargarRegistros();
+      });
+    }
+    async cargarRegistros() {
+      try {
+        this.vista.mostrarPresiones(await this.api.presiones());
+      } catch (_) {
+        this.vista.mostrarErrorPresiones();
+      }
+    }
+  };
+
+  // src/controladores/ControladorRegistro.ts
+  var ControladorRegistro = class {
+    constructor(vista, api, avisos, navegador, errores) {
+      this.api = api;
+      this.avisos = avisos;
+      this.navegador = navegador;
+      this.errores = errores;
+      vista.alEnviar((datos) => {
+        void this.registrar(datos);
+      });
+    }
+    async registrar(datos) {
+      this.avisos.limpiar();
+      try {
+        await this.api.registro(datos);
+        this.avisos.avisarLuego("Cuenta creada. Ahora inicia sesi\xF3n.");
+        this.navegador.ir("#/login");
+      } catch (e) {
+        this.errores.mostrar(e);
+      }
+    }
+  };
+
+  // src/controladores/ControladorResultado.ts
+  var ControladorResultado = class {
+    constructor(vista, api, descarga, avisos, navegador, errores) {
+      this.vista = vista;
+      this.api = api;
+      this.descarga = descarga;
+      this.avisos = avisos;
+      this.navegador = navegador;
+      this.errores = errores;
+      vista.alMostrar(() => {
+        void this.cargar();
+      });
+      vista.alDescargarPdf((id) => {
+        void this.descarga.descargar(id);
+      });
+    }
+    async cargar() {
+      try {
+        const resultado = await this.api.evaluacion(this.vista.id());
+        this.avisos.limpiar();
+        this.vista.mostrarResultado(resultado);
+      } catch (e) {
+        this.errores.mostrar(e);
+        if (e instanceof ApiError && e.status === 404) this.navegador.ir("#/inicio");
+      }
+    }
+  };
+
   // src/vistas/Vista.ts
   var Vista = class {
     constructor(barra) {
       this.barra = barra;
+      this.manejadorMostrar = null;
+    }
+    /** El controlador pide que le avisen cuando la pantalla ya está pintada (para cargar datos). */
+    alMostrar(manejador) {
+      this.manejadorMostrar = manejador;
     }
     mostrar(seq) {
       this.barra.mostrar(this.tipoBarra());
-      return this.contenido(seq);
+      this.contenido(seq);
+      this.manejadorMostrar?.(seq);
     }
     /** Reemplaza el contenido de la página. */
     pintar(html) {
@@ -378,31 +545,29 @@
   // src/vistas/VistaHistorial.ts
   var CLASES = { verde: "fila-verde", amarillo: "fila-amarilla", rojo: "fila-roja" };
   var VistaHistorial = class extends Vista {
-    constructor(d) {
-      super(d.barra);
-      this.api = d.api;
-      this.descarga = d.descarga;
-      this.errores = d.errores;
+    constructor(barra) {
+      super(barra);
+      this.manejadorPdf = null;
+    }
+    alDescargarPdf(manejador) {
+      this.manejadorPdf = manejador;
     }
     tipoBarra() {
       return "interna";
     }
-    async contenido() {
-      const esc = Html.esc;
+    contenido() {
       this.pintar(`<div class="contenedor"><div class="tarjeta-plana"><h1 class="centrado">Historial de evaluaciones</h1><div id="cont" class="muted centrado">Cargando\u2026</div>
       <p class="enlace-centro"><a href="#/inicio">Volver al Dashboard</a></p></div></div>`);
-      try {
-        const h = await this.api.historial();
-        this.$("#cont").outerHTML = h.length ? `<div class="tabla-scroll"><table><thead><tr><th>Fecha</th><th>Puntaje</th><th>Nivel</th><th>Acciones</th></tr></thead><tbody>${h.map((x) => `<tr class="${CLASES[x.color] || ""}"><td>${Html.fecha(x.fecha)}</td><td>${esc(x.puntaje)}</td><td>${esc(x.nivel)}</td>
-          <td><a class="btn btn-azul" href="#/resultado/${esc(x.id)}">Ver</a><button type="button" class="btn btn-gris" data-pdf="${esc(x.id)}">PDF</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="centrado muted">A\xFAn no tienes evaluaciones. Pulsa \xABComenzar Evaluaci\xF3n\xBB en el Dashboard.</p>';
-        document.querySelectorAll("[data-pdf]").forEach((bt) => {
-          bt.onclick = () => {
-            this.descarga.descargar(bt.dataset.pdf);
-          };
-        });
-      } catch (e) {
-        this.errores.mostrar(e);
-      }
+    }
+    mostrarHistorial(h) {
+      const esc = Html.esc;
+      this.$("#cont").outerHTML = h.length ? `<div class="tabla-scroll"><table><thead><tr><th>Fecha</th><th>Puntaje</th><th>Nivel</th><th>Acciones</th></tr></thead><tbody>${h.map((x) => `<tr class="${CLASES[x.color] || ""}"><td>${Html.fecha(x.fecha)}</td><td>${esc(x.puntaje)}</td><td>${esc(x.nivel)}</td>
+        <td><a class="btn btn-azul" href="#/resultado/${esc(x.id)}">Ver</a><button type="button" class="btn btn-gris" data-pdf="${esc(x.id)}">PDF</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="centrado muted">A\xFAn no tienes evaluaciones. Pulsa \xABComenzar Evaluaci\xF3n\xBB en el Dashboard.</p>';
+      document.querySelectorAll("[data-pdf]").forEach((bt) => {
+        bt.onclick = () => {
+          this.manejadorPdf?.(bt.dataset.pdf);
+        };
+      });
     }
   };
 
@@ -410,9 +575,12 @@
   var VistaInicio = class extends Vista {
     constructor(d) {
       super(d.barra);
+      this.manejadorVerRiesgo = null;
       this.repoBorrador = d.repoBorrador;
       this.catalogo = d.catalogo;
-      this.flujo = d.flujo;
+    }
+    alVerRiesgo(manejador) {
+      this.manejadorVerRiesgo = manejador;
     }
     tipoBarra() {
       return "dash";
@@ -435,21 +603,19 @@
         ${mod("historial", "Historial", "Revisa tus evaluaciones previas", "#/historial")}
       </section></div>`);
       this.$("#ver-riesgo").onclick = () => {
-        this.flujo.verRiesgo();
+        this.manejadorVerRiesgo?.();
       };
     }
   };
 
   // src/vistas/VistaLogin.ts
   var VistaLogin = class extends Vista {
-    constructor(d) {
-      super(d.barra);
-      this.api = d.api;
-      this.sesion = d.sesion;
-      this.repoBorrador = d.repoBorrador;
-      this.avisos = d.avisos;
-      this.navegador = d.navegador;
-      this.errores = d.errores;
+    constructor(barra) {
+      super(barra);
+      this.manejadorEnvio = null;
+    }
+    alEnviar(manejador) {
+      this.manejadorEnvio = manejador;
     }
     tipoBarra() {
       return "auth";
@@ -461,30 +627,21 @@
         <div class="campo"><label for="password">Contrase\xF1a</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
         <button class="btn btn-oscuro btn-ancho" type="submit">Entrar</button></form>
       <p class="enlace-centro">\xBFNo tienes cuenta? <a href="#/registro">Reg\xEDstrate</a></p></div></div>`);
-      this.$("#form").onsubmit = async (ev) => {
+      this.$("#form").onsubmit = (ev) => {
         ev.preventDefault();
-        this.avisos.limpiar();
-        try {
-          const r = await this.api.login(this.$("#correo").value.trim(), this.$("#password").value);
-          this.sesion.abrir(r.token, r.nombre);
-          this.repoBorrador.borrar();
-          this.avisos.avisarLuego("Bienvenido " + this.sesion.nombre() + " \u{1F44B}");
-          this.navegador.ir("#/inicio");
-        } catch (e) {
-          this.errores.mostrar(e);
-        }
+        this.manejadorEnvio?.(this.$("#correo").value.trim(), this.$("#password").value);
       };
     }
   };
 
   // src/vistas/VistaRegistro.ts
   var VistaRegistro = class extends Vista {
-    constructor(d) {
-      super(d.barra);
-      this.api = d.api;
-      this.avisos = d.avisos;
-      this.navegador = d.navegador;
-      this.errores = d.errores;
+    constructor(barra) {
+      super(barra);
+      this.manejadorEnvio = null;
+    }
+    alEnviar(manejador) {
+      this.manejadorEnvio = manejador;
     }
     tipoBarra() {
       return "auth";
@@ -498,20 +655,13 @@
           <small id="ayuda-pw" class="muted">M\xEDnimo 8 caracteres, con letras y n\xFAmeros.</small></div>
         <button class="btn btn-azul btn-ancho" type="submit">Registrarse</button></form>
       <p class="enlace-centro">\xBFYa tienes cuenta? <a href="#/login">Inicia sesi\xF3n</a></p></div></div>`);
-      this.$("#form").onsubmit = async (ev) => {
+      this.$("#form").onsubmit = (ev) => {
         ev.preventDefault();
-        this.avisos.limpiar();
-        try {
-          await this.api.registro({
-            nombre: this.$("#nombre").value.trim(),
-            correo: this.$("#correo").value.trim(),
-            password: this.$("#password").value
-          });
-          this.avisos.avisarLuego("Cuenta creada. Ahora inicia sesi\xF3n.");
-          this.navegador.ir("#/login");
-        } catch (e) {
-          this.errores.mostrar(e);
-        }
+        this.manejadorEnvio?.({
+          nombre: this.$("#nombre").value.trim(),
+          correo: this.$("#correo").value.trim(),
+          password: this.$("#password").value
+        });
       };
     }
   };
@@ -519,27 +669,29 @@
   // src/vistas/VistaResultado.ts
   var NIVELES = { bajo: "Riesgo Bajo", medio: "Riesgo Medio", alto: "Riesgo Alto" };
   var VistaResultado = class extends Vista {
-    constructor(d, id) {
-      super(d.barra);
-      this.id = id;
-      this.api = d.api;
-      this.descarga = d.descarga;
-      this.avisos = d.avisos;
-      this.navegador = d.navegador;
-      this.errores = d.errores;
+    constructor(barra, idEvaluacion) {
+      super(barra);
+      this.idEvaluacion = idEvaluacion;
+      this.manejadorPdf = null;
+    }
+    /** Id de la evaluación que esta pantalla muestra (el controlador lo necesita para consultarla). */
+    id() {
+      return this.idEvaluacion;
+    }
+    alDescargarPdf(manejador) {
+      this.manejadorPdf = manejador;
     }
     tipoBarra() {
       return "interna";
     }
-    async contenido() {
-      const esc = Html.esc;
+    contenido() {
       this.pintar('<p class="centrado muted">Cargando resultado\u2026</p>');
-      try {
-        const r = await this.api.evaluacion(this.id);
-        this.avisos.limpiar();
-        const nombreNivel = NIVELES[r.nivel] || r.nivel;
-        const n = r.nutricion;
-        this.pintar(`<div class="contenedor resultado">
+    }
+    mostrarResultado(r) {
+      const esc = Html.esc;
+      const nombreNivel = NIVELES[r.nivel] || r.nivel;
+      const n = r.nutricion;
+      this.pintar(`<div class="contenedor resultado">
         <h1>Evaluaci\xF3n del Riesgo Cardiovascular</h1>
         <div class="circulo ${esc(r.color)}" role="img" aria-label="Indicador de color: ${esc(r.color)}"></div>
         <p class="nivel">Tu nivel de riesgo es: <b class="${esc(r.color)}">${esc(nombreNivel)}</b></p>
@@ -554,13 +706,9 @@
         <div class="fila-botones"><button class="btn btn-verde" id="pdf" type="button">Descargar reporte PDF</button>
           <a class="btn btn-gris" href="#/historial">Ver historial</a><a class="btn btn-gris" href="#/inicio">Volver al Dashboard</a></div>
         <p class="muted pequeno" style="margin-top:1rem">${esc(r.aviso || "")}</p></div>`);
-        this.$("#pdf").onclick = () => {
-          this.descarga.descargar(this.id);
-        };
-      } catch (e) {
-        this.errores.mostrar(e);
-        if (e instanceof ApiError && e.status === 404) this.navegador.ir("#/inicio");
-      }
+      this.$("#pdf").onclick = () => {
+        this.manejadorPdf?.(this.idEvaluacion);
+      };
     }
   };
 
@@ -568,13 +716,15 @@
   var VistaModulo = class extends Vista {
     constructor(d) {
       super(d.barra);
+      this.manejadorEnvio = null;
       this.catalogo = d.catalogo;
       this.repoBorrador = d.repoBorrador;
-      this.avisos = d.avisos;
-      this.navegador = d.navegador;
       this.lector = d.lector;
-      this.flujo = d.flujo;
       this.campos = d.campos;
+    }
+    /** El controlador se registra aquí; recibe los datos leídos y si el flujo es secuencial. */
+    alEnviar(manejador) {
+      this.manejadorEnvio = manejador;
     }
     numericos() {
       return [];
@@ -600,28 +750,15 @@
       <form id="form" novalidate>${this.cuerpo(b.seccion(seccion))}
         <button class="btn btn-azul btn-ancho" type="submit">${this.botonEnvio(seq)}</button></form>
       <p class="enlace-centro"><a href="#/inicio">Volver al Dashboard</a></p></div></div>`);
-      this.$("#form").onsubmit = (ev) => this.alEnviar(ev, seq);
+      this.$("#form").onsubmit = (ev) => {
+        ev.preventDefault();
+        const datos = this.lector.leer(ev.target, this.numericos(), this.booleanos());
+        this.manejadorEnvio?.(datos, seq);
+      };
     }
     botonEnvio(seq) {
       if (seq) return this.seccion() !== "clinica" ? "Guardar y continuar" : "Guardar y ver resultado";
       return this.textoBoton();
-    }
-    async alEnviar(ev, seq) {
-      ev.preventDefault();
-      this.avisos.limpiar();
-      const seccion = this.seccion();
-      const datos = this.lector.leer(ev.target, this.numericos(), this.booleanos());
-      const faltan = this.catalogo.definicion(seccion).campos.filter((c) => datos[c] === void 0 || datos[c] === "" || Number.isNaN(datos[c]));
-      if (faltan.length) return this.avisos.mostrar("Completa todos los campos para continuar.", "error");
-      const bor = this.repoBorrador.leer();
-      bor.actualizar(seccion, datos);
-      this.repoBorrador.guardar(bor);
-      if (seq) {
-        const sig = this.catalogo.siguiente(seccion);
-        return sig ? this.navegador.ir(this.catalogo.definicion(sig).ruta + "?seq=1") : this.flujo.enviar();
-      }
-      this.avisos.avisarLuego("Datos guardados correctamente: " + this.catalogo.definicion(seccion).titulo.toLowerCase() + ".");
-      this.navegador.ir("#/inicio");
     }
   };
 
@@ -730,10 +867,6 @@
     elevada: ["fila-naranja", "Elevada"]
   };
   var VistaPresion = class extends VistaModulo {
-    constructor(d, api) {
-      super(d);
-      this.api = api;
-    }
     seccion() {
       return "clinica";
     }
@@ -754,20 +887,21 @@
       ${c.numero("colesterol_total", "Colesterol total (mg/dL)", d.colesterol_total ?? "", 'min="50" max="600"')}
       ${c.numero("colesterol_hdl", "Colesterol HDL (mg/dL)", d.colesterol_hdl ?? "", 'min="10" max="200"')}`;
     }
-    async contenido(seq) {
+    contenido(seq) {
       super.contenido(seq);
       if (seq) return;
-      const esc = Html.esc;
       this.$(".tarjeta").insertAdjacentHTML("afterend", `<div class="tarjeta-plana" style="margin-top:1.4rem"><h2>Historial de registros</h2><div id="tabla-p" class="muted">Cargando\u2026</div></div>`);
-      try {
-        const p = await this.api.presiones();
-        this.$("#tabla-p").outerHTML = p.length ? `<div class="tabla-scroll"><table><thead><tr><th>Fecha</th><th>Sist\xF3lica</th><th>Diast\xF3lica</th><th>Estado</th></tr></thead><tbody>${p.map((r) => {
-          const [cl, tx] = FILA[r.estado] || ["", r.estado];
-          return `<tr class="${cl}"><td>${esc(String(r.fecha).replace("T", " ").slice(0, 16))}</td><td>${esc(r.sistolica)}</td><td>${esc(r.diastolica)}</td><td>${esc(tx)}</td></tr>`;
-        }).join("")}</tbody></table></div>` : '<p class="muted">A\xFAn no tienes registros. Se agregan al calcular tu evaluaci\xF3n.</p>';
-      } catch (e) {
-        this.$("#tabla-p").textContent = "No se pudo cargar el historial.";
-      }
+    }
+    /** El controlador entrega los registros ya consultados; la vista solo los dibuja. */
+    mostrarPresiones(p) {
+      const esc = Html.esc;
+      this.$("#tabla-p").outerHTML = p.length ? `<div class="tabla-scroll"><table><thead><tr><th>Fecha</th><th>Sist\xF3lica</th><th>Diast\xF3lica</th><th>Estado</th></tr></thead><tbody>${p.map((r) => {
+        const [cl, tx] = FILA[r.estado] || ["", r.estado];
+        return `<tr class="${cl}"><td>${esc(String(r.fecha).replace("T", " ").slice(0, 16))}</td><td>${esc(r.sistolica)}</td><td>${esc(r.diastolica)}</td><td>${esc(tx)}</td></tr>`;
+      }).join("")}</tbody></table></div>` : '<p class="muted">A\xFAn no tienes registros. Se agregan al calcular tu evaluaci\xF3n.</p>';
+    }
+    mostrarErrorPresiones() {
+      this.$("#tabla-p").textContent = "No se pudo cargar el historial.";
     }
   };
 
@@ -778,33 +912,58 @@
     }
     crear(ruta) {
       const d = this.d;
-      const mod = { barra: d.barra, catalogo: d.catalogo, repoBorrador: d.repoBorrador, avisos: d.avisos, navegador: d.navegador, lector: d.lector, flujo: d.flujo, campos: d.campos };
+      const mod = { barra: d.barra, catalogo: d.catalogo, repoBorrador: d.repoBorrador, lector: d.lector, campos: d.campos };
       const m = ruta.match(/^\/resultado\/(\d+)$/);
-      if (m) return new VistaResultado({ barra: d.barra, api: d.apiEvaluaciones, descarga: d.descarga, avisos: d.avisos, navegador: d.navegador, errores: d.errores }, m[1]);
+      if (m) {
+        const vista = new VistaResultado(d.barra, m[1]);
+        new ControladorResultado(vista, d.apiEvaluaciones, d.descarga, d.avisos, d.navegador, d.errores);
+        return vista;
+      }
       switch (ruta) {
-        case "/login":
-          return new VistaLogin({ barra: d.barra, api: d.apiAuth, sesion: d.sesion, repoBorrador: d.repoBorrador, avisos: d.avisos, navegador: d.navegador, errores: d.errores });
-        case "/registro":
-          return new VistaRegistro({ barra: d.barra, api: d.apiAuth, avisos: d.avisos, navegador: d.navegador, errores: d.errores });
-        case "/inicio":
-          return new VistaInicio({ barra: d.barra, repoBorrador: d.repoBorrador, catalogo: d.catalogo, flujo: d.flujo });
+        case "/login": {
+          const vista = new VistaLogin(d.barra);
+          new ControladorLogin(vista, d.apiAuth, d.sesion, d.repoBorrador, d.avisos, d.navegador, d.errores);
+          return vista;
+        }
+        case "/registro": {
+          const vista = new VistaRegistro(d.barra);
+          new ControladorRegistro(vista, d.apiAuth, d.avisos, d.navegador, d.errores);
+          return vista;
+        }
+        case "/inicio": {
+          const vista = new VistaInicio({ barra: d.barra, repoBorrador: d.repoBorrador, catalogo: d.catalogo });
+          new ControladorInicio(vista, d.flujo);
+          return vista;
+        }
         case "/faq":
           return new VistaFaq({ barra: d.barra, sesion: d.sesion, minutos: d.minutos });
-        case "/historial":
-          return new VistaHistorial({ barra: d.barra, api: d.apiEvaluaciones, descarga: d.descarga, errores: d.errores });
+        case "/historial": {
+          const vista = new VistaHistorial(d.barra);
+          new ControladorHistorial(vista, d.apiEvaluaciones, d.descarga, d.errores);
+          return vista;
+        }
         case "/datos":
-          return new VistaDatos(mod, d.sesion);
+          return this.conControlador(new VistaDatos(mod, d.sesion));
         case "/habitos-alimenticios":
-          return new VistaAlimentacion(mod);
+          return this.conControlador(new VistaAlimentacion(mod));
         case "/actividad":
-          return new VistaActividad(mod);
+          return this.conControlador(new VistaActividad(mod));
         case "/consumo":
-          return new VistaConsumo(mod);
-        case "/presion":
-          return new VistaPresion(mod, d.apiEvaluaciones);
+          return this.conControlador(new VistaConsumo(mod));
+        case "/presion": {
+          const vista = new VistaPresion(mod);
+          new ControladorPresion(vista, d.repoBorrador, d.catalogo, d.flujo, d.avisos, d.navegador, d.apiEvaluaciones);
+          return vista;
+        }
         default:
           return null;
       }
+    }
+    /** Pantallas de módulo sin lógica propia: todas comparten ControladorModulo. */
+    conControlador(vista) {
+      const d = this.d;
+      new ControladorModulo(vista, d.repoBorrador, d.catalogo, d.flujo, d.avisos, d.navegador);
+      return vista;
     }
   };
 
