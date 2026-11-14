@@ -1,19 +1,22 @@
 """CONTROLADOR (MVC) · HU-01 registro y HU-02 inicio de sesión.
 
 Traduce HTTP a llamadas a AuthService y las excepciones del servicio a códigos de estado.
+No contiene reglas de negocio ni SQL: valida el formato con Pydantic, delega y responde.
 """
 from fastapi import APIRouter, Depends, HTTPException
 
 from ..container import Contenedor, get_contenedor, usuario_actual
-from ..models.models import LoginIn, RegistroIn, TokenOut
+from ..models.models import LoginIn, MensajeOut, RegistroIn, TokenOut, UsuarioOut
 from ..models.services import CorreoYaRegistrado, CredencialesInvalidas
 
 router = APIRouter(prefix="/api/auth", tags=["autenticación"])
 
 
-@router.post("/registro", status_code=201)
+@router.post("/registro", status_code=201, response_model=MensajeOut,
+             summary="Crear una cuenta (HU-01)",
+             responses={409: {"description": "Ese correo ya está registrado."},
+                        422: {"description": "Datos inválidos (nombre, correo o contraseña)."}})
 def registro(datos: RegistroIn, c: Contenedor = Depends(get_contenedor)):
-    """HU-01: crea una cuenta. Responde 409 si el correo ya está registrado."""
     try:
         c.auth.registrar(datos.nombre, datos.correo, datos.password)
     except CorreoYaRegistrado:
@@ -21,9 +24,10 @@ def registro(datos: RegistroIn, c: Contenedor = Depends(get_contenedor)):
     return {"mensaje": "Registro exitoso. Ya puedes iniciar sesión."}
 
 
-@router.post("/login", response_model=TokenOut)
+@router.post("/login", response_model=TokenOut,
+             summary="Iniciar sesión y recibir el token (HU-02)",
+             responses={401: {"description": "Correo o contraseña incorrectos."}})
 def login(datos: LoginIn, c: Contenedor = Depends(get_contenedor)):
-    """HU-02: inicia sesión y entrega el token JWT. Responde 401 si las credenciales son incorrectas."""
     try:
         token, nombre = c.auth.iniciar_sesion(datos.correo, datos.password)
     except CredencialesInvalidas:
@@ -31,7 +35,8 @@ def login(datos: LoginIn, c: Contenedor = Depends(get_contenedor)):
     return TokenOut(token=token, nombre=nombre)
 
 
-@router.get("/me")
+@router.get("/me", response_model=UsuarioOut,
+            summary="Usuario de la sesión actual",
+            responses={401: {"description": "Falta el token o la sesión expiró."}})
 def me(usuario: dict = Depends(usuario_actual)):
-    """Devuelve el id, el nombre y el correo del usuario autenticado."""
     return {"id": usuario["id"], "nombre": usuario["nombre"], "correo": usuario["correo"]}

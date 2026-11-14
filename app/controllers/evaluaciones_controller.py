@@ -9,69 +9,61 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 
 from ..container import Contenedor, get_contenedor, usuario_actual
-from ..models.models import DatosEvaluacion, ResultadoEvaluacion
+from ..models.models import DatosEvaluacion, ItemHistorial, RegistroPresion, ResultadoEvaluacion
 from ..views.report import generar_pdf
 from ..models.services import EvaluacionNoEncontrada
 
-router = APIRouter(prefix="/api/evaluaciones", tags=["evaluaciones"])
+router = APIRouter(prefix="/api/evaluaciones", tags=["evaluaciones"],
+                   responses={401: {"description": "Falta el token o la sesión expiró."}})
 
 
-@router.post("", response_model=ResultadoEvaluacion)
+@router.post("", response_model=ResultadoEvaluacion,
+             summary="Evaluar el riesgo y guardar el resultado (HU-11 a HU-14)",
+             responses={422: {"description": "Datos de la evaluación inválidos."}})
 def crear_evaluacion(datos: DatosEvaluacion,
                      usuario: dict = Depends(usuario_actual),
                      c: Contenedor = Depends(get_contenedor)):
-    """HU-11 a HU-14: calcula el riesgo, lo guarda en el historial y devuelve el resultado."""
     return c.evaluaciones.evaluar(usuario["id"], datos)
 
 
-@router.get("")
+@router.get("", response_model=List[ItemHistorial],
+            summary="Historial de evaluaciones del usuario, la más reciente primero (HU-15)")
 def listar_historial(usuario: dict = Depends(usuario_actual),
-                     c: Contenedor = Depends(get_contenedor)) -> List[dict]:
-    """HU-15: lista las evaluaciones del usuario, de la más reciente a la más antigua."""
+                     c: Contenedor = Depends(get_contenedor)):
     return c.historial.listar(usuario["id"])
 
 
 # Debe declararse ANTES de "/{evaluacion_id}"; si no, "presiones" se interpretaría como un id.
-@router.get("/presiones")
+@router.get("/presiones", response_model=List[RegistroPresion],
+            summary="Registros de presión arterial del usuario (HU-09)")
 def historial_presiones(usuario: dict = Depends(usuario_actual),
-                        c: Contenedor = Depends(get_contenedor)) -> List[dict]:
-    """Lista los registros de presión arterial del usuario, del más reciente al más antiguo."""
+                        c: Contenedor = Depends(get_contenedor)):
     return c.historial.presiones(usuario["id"])
 
 
 def _buscar(c: Contenedor, usuario: dict, evaluacion_id: int) -> dict:
-    """Busca una evaluación del usuario.
-
-    Args:
-        c: contenedor de servicios.
-        usuario: usuario autenticado.
-        evaluacion_id: id de la evaluación.
-
-    Returns:
-        ``{'datos': {...}, 'resultado': {...}}``.
-
-    Raises:
-        HTTPException: 404 si no existe o pertenece a otro usuario.
-    """
     try:
         return c.historial.obtener(usuario["id"], evaluacion_id)
     except EvaluacionNoEncontrada:   # no existe o es de otro usuario: misma respuesta
         raise HTTPException(status_code=404, detail="Evaluación no encontrada.")
 
 
-@router.get("/{evaluacion_id}", response_model=ResultadoEvaluacion)
+@router.get("/{evaluacion_id}", response_model=ResultadoEvaluacion,
+            summary="Detalle de una evaluación del usuario (HU-15)",
+            responses={404: {"description": "Evaluación no encontrada."}})
 def detalle(evaluacion_id: int,
             usuario: dict = Depends(usuario_actual),
             c: Contenedor = Depends(get_contenedor)):
-    """HU-15: devuelve el resultado de una evaluación. Responde 404 si no existe o es de otro usuario."""
     return _buscar(c, usuario, evaluacion_id)["resultado"]
 
 
-@router.get("/{evaluacion_id}/pdf")
+@router.get("/{evaluacion_id}/pdf",
+            summary="Descargar el reporte en PDF (HU-16)",
+            responses={200: {"content": {"application/pdf": {}}, "description": "Archivo PDF."},
+                       404: {"description": "Evaluación no encontrada."}})
 def reporte_pdf(evaluacion_id: int,
                 usuario: dict = Depends(usuario_actual),
                 c: Contenedor = Depends(get_contenedor)):
-    """HU-16: descarga el reporte PDF de una evaluación. Responde 404 si no existe o es de otro usuario."""
     fila = _buscar(c, usuario, evaluacion_id)
     pdf = generar_pdf(usuario["nombre"], fila["resultado"], fila["datos"])
     return Response(content=pdf, media_type="application/pdf", headers={
